@@ -27,9 +27,10 @@ type (
 	}
 
 	Auth struct {
-		SecretKey     string
-		TokenType     string
-		TokenDuration time.Duration
+		SecretKey            string
+		TokenType            string
+		TokenDuration        time.Duration
+		RefreshTokenDuration time.Duration
 	}
 )
 
@@ -53,9 +54,10 @@ func New(path string) (config *Configuration, err error) {
 		Port: viper.GetString("HTTP_PORT"),
 	}
 	auth := &Auth{
-		SecretKey:     viper.GetString("SECRET_KEY"),
-		TokenType:     viper.GetString("TOKEN_TYPE"),
-		TokenDuration: viper.GetDuration("TOKEN_DURATION"),
+		SecretKey:            viper.GetString("SECRET_KEY"),
+		TokenType:            viper.GetString("TOKEN_TYPE"),
+		TokenDuration:        viper.GetDuration("TOKEN_DURATION"),
+		RefreshTokenDuration: viper.GetDuration("REFRESH_TOKEN_DURATION"),
 	}
 
 	config = &Configuration{DB: db, HTTP: http, Auth: auth}

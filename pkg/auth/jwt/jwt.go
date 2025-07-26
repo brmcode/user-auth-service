@@ -19,14 +19,15 @@ type JWTService struct {
 }
 
 // GenerateToken implements port.TokenService.
-func (j *JWTService) GenerateToken(username string, role string, duration time.Duration) (string, error) {
+func (j *JWTService) GenerateToken(username string, role string, duration time.Duration) (string, *auth.Payload, error) {
 	payload, err := auth.NewPayload(username, role, duration)
 	if err != nil {
-		return "", err
+		return "", payload, err
 	}
 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
-	return jwtToken.SignedString(j.secretKey)
+	token, err := jwtToken.SignedString(j.secretKey)
+	return token, payload, err
 }
 
 // VerifyToken implements port.TokenService.

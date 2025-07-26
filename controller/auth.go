@@ -26,7 +26,24 @@ func (a *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	res, resErr := a.authService.Login(input)
+	res, resErr := a.authService.Login(ctx, input)
+	if resErr != nil {
+		ctx.JSON(resErr.Code, resErr)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, res)
+}
+
+func (a *AuthController) RefreshToken(ctx *gin.Context) {
+	var input dto.ReNewAccessTokenRequest
+
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		return
+	}
+
+	res, resErr := a.authService.ReNewAccessToken(input)
 	if resErr != nil {
 		ctx.JSON(resErr.Code, resErr)
 		return

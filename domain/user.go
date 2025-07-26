@@ -22,6 +22,7 @@ type User struct {
 	CreatedAt         time.Time      `gorm:"type:timestamptz;not null;default:CURRENT_TIMESTAMP" json:"created_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 	Role              string         `gorm:"type:varchar(10);not null" json:"role"`
+	Session           Session        `gorm:"foreignKey:Username" json:"-"`
 }
 
 func GetUsername(ctx *gin.Context) string {

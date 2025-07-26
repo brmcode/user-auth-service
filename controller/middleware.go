@@ -24,7 +24,7 @@ func SetTokenService(ts auth.TokenService, db *database.DB) {
 	_db = db
 }
 
-func Authorized(role string) gin.HandlerFunc {
+func Authorized(role ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorizationHeader := c.GetHeader(authorizationHeaderKey)
 
@@ -56,7 +56,7 @@ func Authorized(role string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, "your account is no longer active or may have been removed"))
 			return
 		}
-		if role != "" && role != payload.Role {
+		if len(role) > 0 && role[0] != payload.Role {
 			c.AbortWithStatusJSON(http.StatusForbidden, response.NewError(403, "insufficient privileges"))
 			return
 		}

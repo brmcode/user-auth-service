@@ -15,6 +15,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	ROLE_ADMIN = "ADMIN"
+	ROLE_USER  = "USER"
+)
+
 type Router struct {
 	*gin.Engine
 }
@@ -38,13 +43,14 @@ func NewRouter(
 		{
 			auth.POST("/login", authCtrl.Login)
 			auth.POST("/register", authCtrl.Register)
+			auth.POST("/refresh_token", authCtrl.RefreshToken)
 		}
 		user := api.Group("/users")
 		{
-			user.POST("", Authorized("ADMIN"), userCtrl.CreateUser)
-			user.GET("/:username", Authorized("ADMIN"), userCtrl.GetUser)
-			user.PUT("/:username", Authorized("ADMIN"), userCtrl.UpdateUser)
-			user.DELETE("/:username", Authorized("ADMIN"), userCtrl.DeleteUser)
+			user.POST("", Authorized(ROLE_ADMIN), userCtrl.CreateUser)
+			user.GET("/:username", Authorized(), userCtrl.GetUser)
+			user.PUT("/:username", Authorized(), userCtrl.UpdateUser)
+			user.DELETE("/:username", Authorized(), userCtrl.DeleteUser)
 		}
 	}
 

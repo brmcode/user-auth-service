@@ -20,13 +20,14 @@ type PasetoService struct {
 }
 
 // GenerateToken implements port.TokenService.
-func (p *PasetoService) GenerateToken(username string, role string, duration time.Duration) (string, error) {
+func (p *PasetoService) GenerateToken(username string, role string, duration time.Duration) (string, *auth.Payload, error) {
 	payload, err := auth.NewPayload(username, role, duration)
 	if err != nil {
-		return "", err
+		return "", payload, err
 	}
+	token, err := p.paseto.Encrypt(p.symmetricKey, payload, nil)
 
-	return p.paseto.Encrypt(p.symmetricKey, payload, nil)
+	return token, payload, err
 }
 
 // VerifyToken implements port.TokenService.

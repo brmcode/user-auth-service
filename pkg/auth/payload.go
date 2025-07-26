@@ -13,7 +13,7 @@ var (
 )
 
 type Payload struct {
-	ID        string     `json:"id"`
+	ID        uuid.UUID  `json:"id"`
 	Username  string     `json:"username"`
 	Role      string     `json:"role"`
 	IssuedAt  time.Time  `json:"issued_at"`
@@ -68,7 +68,7 @@ func NewPayload(username string, role string, duration time.Duration) (*Payload,
 
 	now := time.Now()
 	payload := &Payload{
-		ID:        tokenID.String(),
+		ID:        tokenID,
 		Username:  username,
 		Role:      role,
 		IssuedAt:  now,

@@ -33,13 +33,14 @@ func main() {
 	}
 
 	userRepo := repository.NewUserRepository(db)
+	sessionRepo := repository.NewSessionRepository(db)
 
 	userServ := service.NewUserService(userRepo)
 	tokenServ, err := paseto.New(config.Auth.SecretKey)
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
-	authServ := service.NewAuthenticationService(config.Auth, userRepo, tokenServ)
+	authServ := service.NewAuthenticationService(config.Auth, userRepo, sessionRepo, tokenServ)
 
 	userCtrl := controller.NewUserController(userServ)
 	authCtrl := controller.NewAuthController(userServ, authServ)

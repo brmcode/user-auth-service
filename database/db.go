@@ -7,6 +7,7 @@ import (
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 type DB struct {
@@ -23,7 +24,11 @@ func New(config *config.DB) (*DB, error) {
 		config.Name,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn))
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: false,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +39,7 @@ func New(config *config.DB) (*DB, error) {
 func (db *DB) Migrate() error {
 	return db.AutoMigrate(
 		&domain.User{},
+		&domain.Session{},
 	)
 }
 
