@@ -1,0 +1,14 @@
+createdb:
+	docker exec -it user-auth-service-postgres-1 createdb --username=root --owner=root auth_db
+
+dropdb:
+	docker exec -it user-auth-service-postgres-1 dropdb --username=root auth_db
+
+run-app:
+	go run main.go
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
