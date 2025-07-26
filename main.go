@@ -6,6 +6,8 @@ import (
 
 	"github.com/brmcode/user-auth-service/controller"
 	"github.com/brmcode/user-auth-service/database"
+	"github.com/brmcode/user-auth-service/pkg/auth"
+	"github.com/brmcode/user-auth-service/pkg/auth/jwt"
 	"github.com/brmcode/user-auth-service/pkg/auth/paseto"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/brmcode/user-auth-service/repository"
@@ -36,7 +38,10 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(db)
 
 	userServ := service.NewUserService(userRepo)
-	tokenServ, err := paseto.New(config.Auth.SecretKey)
+	if config.Auth.TokenType == "paseto" {
+
+	}
+	tokenServ, err := newTokenService(config.Auth)
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
@@ -58,4 +63,15 @@ func main() {
 	}
 
 	router.Serve(":" + config.HTTP.Port)
+}
+
+func newTokenService(config *config.Auth) (auth.TokenService, error) {
+	switch config.TokenType {
+	case "paseto", "PASETO":
+		return paseto.New(config.SecretKey)
+	case "jwt", "JWT":
+		return jwt.New(config.SecretKey)
+	default:
+		return nil, fmt.Errorf("unsupported token type "+"\"%s\". Only \"paseto\" and \"jwt\" are supported", config.TokenType)
+	}
 }

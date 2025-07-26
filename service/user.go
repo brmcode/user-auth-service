@@ -6,8 +6,8 @@ import (
 	"github.com/brmcode/user-auth-service/domain"
 	"github.com/brmcode/user-auth-service/dto"
 	"github.com/brmcode/user-auth-service/dto/response"
+	"github.com/brmcode/user-auth-service/pkg/util"
 	"github.com/brmcode/user-auth-service/repository"
-	"github.com/brmcode/user-auth-service/util"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
