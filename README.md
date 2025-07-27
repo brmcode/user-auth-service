@@ -36,6 +36,7 @@ A robust, modular user authentication and management service written in Go, supp
 - ♻️ **Access & refresh token** issuance and renewal
 - 🗂️ **Session management** with database persistence
 - 🏗️ **Hexagonal architecture** with clear separation of concerns
+- ✅ **Input validation** with custom validation rules
 - 🚦 **Rate limiting** middleware for API protection
 - 🐘 **PostgreSQL** integration
 - 🐳 **Dockerized** for easy deployment
@@ -55,6 +56,7 @@ internal/                  # Application-specific code
 │   ├── database/         # Database connection and migration
 │   │   └── repository/   # Data access implementations
 │   ├── middleware/       # HTTP middleware (auth, rate limiting)
+│   ├── validator/        # Input validation with custom rules
 │   └── auth/             # Token service implementations
 └── core/                 # Business logic and domain
     ├── domain/           # Core domain models
@@ -74,7 +76,7 @@ go.mod, go.sum           # Go modules
 ```
 
 ### Architecture Layers:
-- **Adapters**: Handle external concerns (HTTP, database, authentication, middleware)
+- **Adapters**: Handle external concerns (HTTP, database, authentication, middleware, validation)
 - **Core**: Contains business logic, domain models, and interfaces
 - **Ports**: Define contracts between layers
 - **Pkg**: Reusable utilities and configuration
@@ -102,6 +104,11 @@ go.mod, go.sum           # Go modules
 - **Rate Limit**: 40 requests per second
 - **Middleware**: Applied globally to all endpoints
 
+### ✅ Validation
+- **Custom Rules**: hexlower, optional_url, date formats
+- **Standard Rules**: email, required, min, max, etc.
+- **Error Messages**: User-friendly validation messages
+
 ---
 
 ## 🗃️ Data Models
@@ -110,7 +117,7 @@ go.mod, go.sum           # Go modules
 - `Username` (primary key)
 - `FirstName`, `LastName`, `Email` (unique)
 - `HashedPassword`
-- `Role` (admin/user)
+- `Role` (USER/ADMIN)
 - `CreatedAt`, `PasswordChangedAt`, `DeletedAt`
 
 ### Session
@@ -198,6 +205,7 @@ REFRESH_TOKEN_DURATION=168h
 - Add business logic in `internal/core/service/`
 - Add new models in `internal/core/domain/` and update migrations in `internal/adapter/database/db.go`
 - Add middleware in `internal/adapter/middleware/`
+- Add validation rules in `internal/adapter/validator/`
 - Switch token type (PASETO/JWT) via `app.env` `TOKEN_TYPE` setting
 
 ---
@@ -221,6 +229,10 @@ user-auth-service/
 │   │   ├── middleware/
 │   │   │   ├── auth.go
 │   │   │   └── ratelimit.go
+│   │   ├── validator/
+│   │   │   ├── validator.go
+│   │   │   ├── register_validation.go
+│   │   │   └── message.go
 │   │   └── auth/
 │   │       ├── payload.go
 │   │       ├── jwt/
