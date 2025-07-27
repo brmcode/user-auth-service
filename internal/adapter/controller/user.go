@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/dto/request"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
@@ -12,11 +13,12 @@ import (
 )
 
 type UserController struct {
+	validator   *validator.Validator
 	userService port.UserService
 }
 
-func NewUserController(userService port.UserService) *UserController {
-	return &UserController{userService: userService}
+func NewUserController(validator *validator.Validator, userService port.UserService) *UserController {
+	return &UserController{validator: validator, userService: userService}
 }
 
 func (u *UserController) GetUser(ctx *gin.Context) {
@@ -42,6 +44,11 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
+	if err := u.validator.Validate(req); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		return
+	}
+
 	user, resErr := u.userService.CreateUser(req)
 	if resErr != nil {
 		ctx.JSON(resErr.Code, resErr)
@@ -56,6 +63,11 @@ func (u *UserController) UpdateUser(ctx *gin.Context) {
 
 	var req request.UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		return
+	}
+
+	if err := u.validator.Validate(req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
 		return
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/adapter/database"
 	"github.com/brmcode/user-auth-service/internal/adapter/database/repository"
 	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
+	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/internal/core/service"
 	"github.com/brmcode/user-auth-service/pkg/config"
@@ -48,8 +49,9 @@ func main() {
 	}
 	authServ := service.NewAuthenticationService(config.Auth, userRepo, sessionRepo, tokenServ)
 
-	userCtrl := controller.NewUserController(userServ)
-	authCtrl := controller.NewAuthController(userServ, authServ)
+	validator := validator.NewValidator()
+	userCtrl := controller.NewUserController(validator, userServ)
+	authCtrl := controller.NewAuthController(validator, userServ, authServ)
 
 	middleware.Set(tokenServ, db)
 

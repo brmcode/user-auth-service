@@ -10,6 +10,8 @@ import (
 
 const (
 	DEFAULT_USER = "user"
+	USER_ROLE    = "USER"
+	ADMIN_ROLE   = "ADMIN"
 )
 
 type User struct {

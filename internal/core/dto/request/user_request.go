@@ -1,16 +1,16 @@
 package request
 
 type CreateUserRequest struct {
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	Role      string `json:"role"`
+	FirstName string `json:"first_name" validate:"required,min=3,max=20"`
+	LastName  string `json:"last_name" validate:"required,min=3,max=20"`
+	Email     string `json:"email" validate:"required,email"`
+	Password  string `json:"password" validate:"required,min=6"`
+	Role      string `json:"role" validate:"required,oneof=ADMIN USER"`
 }
 
 type UpdateUserRequest struct {
-	Username  string `json:"username"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
+	Username  string `json:"username" validate:"required,max=60"`
+	FirstName string `json:"first_name" validate:"required,min=3,max=20"`
+	LastName  string `json:"last_name" validate:"required,min=3,max=20"`
+	Role      string `json:"role" validate:"required,oneof=ADMIN USER"`
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	mw "github.com/brmcode/user-auth-service/internal/adapter/middleware"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/gin-contrib/cors"
@@ -49,7 +50,7 @@ func NewRouter(
 		}
 		user := api.Group("/users")
 		{
-			user.POST("", mw.Authorized(ROLE_ADMIN), userCtrl.CreateUser)
+			user.POST("", mw.Authorized(domain.ADMIN_ROLE), userCtrl.CreateUser)
 			user.GET("/:username", mw.Authorized(), userCtrl.GetUser)
 			user.PUT("/:username", mw.Authorized(), userCtrl.UpdateUser)
 			user.DELETE("/:username", mw.Authorized(), userCtrl.DeleteUser)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	dto "github.com/brmcode/user-auth-service/internal/core/dto/common"
-	"github.com/brmcode/user-auth-service/internal/core/dto/request"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
@@ -120,7 +119,7 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 }
 
 // Register implements AuthenticationService.
-func (a *authService) Register(req request.CreateUserRequest) (*domain.User, *response.Error) {
+func (a *authService) Register(req dto.RegisterUserRequest) (*domain.User, *response.Error) {
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		return nil, response.NewError(500, "failed to hash password")
@@ -132,7 +131,7 @@ func (a *authService) Register(req request.CreateUserRequest) (*domain.User, *re
 		LastName:       req.LastName,
 		Email:          req.Email,
 		HashedPassword: hashedPassword,
-		Role:           req.Role,
+		Role:           domain.USER_ROLE,
 	}
 
 	createdUser, err := a.userRepo.Create(user)
