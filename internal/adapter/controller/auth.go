@@ -3,18 +3,19 @@ package controller
 import (
 	"net/http"
 
-	"github.com/brmcode/user-auth-service/dto"
-	"github.com/brmcode/user-auth-service/dto/response"
-	"github.com/brmcode/user-auth-service/service"
+	dto "github.com/brmcode/user-auth-service/internal/core/dto/common"
+	"github.com/brmcode/user-auth-service/internal/core/dto/request"
+	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
 )
 
 type AuthController struct {
-	userService service.UserService
-	authService service.AuthenticationService
+	userService port.UserService
+	authService port.AuthenticationService
 }
 
-func NewAuthController(userService service.UserService, authService service.AuthenticationService) *AuthController {
+func NewAuthController(userService port.UserService, authService port.AuthenticationService) *AuthController {
 	return &AuthController{userService: userService, authService: authService}
 }
 
@@ -53,7 +54,7 @@ func (a *AuthController) RefreshToken(ctx *gin.Context) {
 }
 
 func (a *AuthController) Register(ctx *gin.Context) {
-	var req dto.CreateUserRequest
+	var req request.CreateUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))

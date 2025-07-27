@@ -3,18 +3,19 @@ package controller
 import (
 	"net/http"
 
-	"github.com/brmcode/user-auth-service/domain"
-	"github.com/brmcode/user-auth-service/dto"
-	"github.com/brmcode/user-auth-service/dto/response"
-	"github.com/brmcode/user-auth-service/service"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
+	"github.com/brmcode/user-auth-service/internal/core/dto/request"
+	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/brmcode/user-auth-service/internal/core/port"
+
 	"github.com/gin-gonic/gin"
 )
 
 type UserController struct {
-	userService service.UserService
+	userService port.UserService
 }
 
-func NewUserController(userService service.UserService) *UserController {
+func NewUserController(userService port.UserService) *UserController {
 	return &UserController{userService: userService}
 }
 
@@ -35,7 +36,7 @@ func (u *UserController) GetUser(ctx *gin.Context) {
 }
 
 func (u *UserController) CreateUser(ctx *gin.Context) {
-	var req dto.CreateUserRequest
+	var req request.CreateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
 		return
@@ -53,7 +54,7 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 func (u *UserController) UpdateUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 
-	var req dto.UpdateUserRequest
+	var req request.UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
 		return

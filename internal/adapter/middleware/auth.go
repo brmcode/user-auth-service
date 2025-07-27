@@ -1,13 +1,13 @@
-package controller
+package middleware
 
 import (
 	"net/http"
 	"strings"
 
-	"github.com/brmcode/user-auth-service/database"
-	"github.com/brmcode/user-auth-service/domain"
-	"github.com/brmcode/user-auth-service/dto/response"
-	"github.com/brmcode/user-auth-service/pkg/auth"
+	"github.com/brmcode/user-auth-service/internal/adapter/database"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
+	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,10 +16,10 @@ const (
 	authorizationType      = "Bearer "
 )
 
-var tokenService auth.TokenService
+var tokenService port.TokenService
 var _db *database.DB
 
-func SetTokenService(ts auth.TokenService, db *database.DB) {
+func Set(ts port.TokenService, db *database.DB) {
 	tokenService = ts
 	_db = db
 }

@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/aead/chacha20poly1305"
-	"github.com/brmcode/user-auth-service/pkg/auth"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth"
+	"github.com/brmcode/user-auth-service/internal/core/port"
+
 	"github.com/o1egl/paseto"
 )
 
@@ -46,7 +48,7 @@ func (p *PasetoService) VerifyToken(tokenString string) (*auth.Payload, error) {
 	return payload, nil
 }
 
-func New(symmetricKey string) (auth.TokenService, error) {
+func New(symmetricKey string) (port.TokenService, error) {
 	if len(symmetricKey) < minSymmetricKeLength {
 		return nil, ErrSecretKeyTooShort
 	}

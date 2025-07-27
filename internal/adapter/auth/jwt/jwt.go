@@ -6,7 +6,8 @@ import (
 
 	"time"
 
-	"github.com/brmcode/user-auth-service/pkg/auth"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -56,7 +57,7 @@ func (j *JWTService) VerifyToken(tokenString string) (*auth.Payload, error) {
 	return finalPayload, nil
 }
 
-func New(secretKey string) (auth.TokenService, error) {
+func New(secretKey string) (port.TokenService, error) {
 	if len(secretKey) < minSecretKeyLength {
 		return nil, ErrSecretKeyTooShort
 	}

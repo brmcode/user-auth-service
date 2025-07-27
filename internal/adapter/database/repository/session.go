@@ -1,15 +1,11 @@
 package repository
 
 import (
-	"github.com/brmcode/user-auth-service/database"
-	"github.com/brmcode/user-auth-service/domain"
+	"github.com/brmcode/user-auth-service/internal/adapter/database"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/google/uuid"
 )
-
-type SessionRepository interface {
-	Create(session *domain.Session) (*domain.Session, error)
-	Get(id uuid.UUID) (*domain.Session, error)
-}
 
 type sessionRepo struct {
 	db *database.DB
@@ -34,6 +30,6 @@ func (s *sessionRepo) Get(id uuid.UUID) (*domain.Session, error) {
 	return &session, nil
 }
 
-func NewSessionRepository(db *database.DB) SessionRepository {
+func NewSessionRepository(db *database.DB) port.SessionRepository {
 	return &sessionRepo{db: db}
 }

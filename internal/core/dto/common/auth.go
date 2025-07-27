@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"github.com/brmcode/user-auth-service/domain"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/google/uuid"
 )
 

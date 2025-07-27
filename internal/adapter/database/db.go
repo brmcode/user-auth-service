@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 
-	"github.com/brmcode/user-auth-service/domain"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
