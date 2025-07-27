@@ -24,30 +24,33 @@ type Payload struct {
 	Audience  []string   `json:"audience,omitempty"`
 }
 
+// Valid checks if the token is expired or not yet valid (nbf).
 func (payload *Payload) Valid() error {
-	if time.Now().After(payload.ExpiresAt) {
+	now := time.Now()
+	if payload.NotBefore != nil && now.Before(*payload.NotBefore) {
+		return jwt.ErrTokenNotValidYet
+	}
+	if now.After(payload.ExpiresAt) {
 		return jwt.ErrTokenExpired
 	}
 	return nil
 }
 
 func (payload *Payload) GetExpirationTime() (*jwt.NumericDate, error) {
-	return &jwt.NumericDate{
-		Time: payload.ExpiresAt,
-	}, nil
+	return jwt.NewNumericDate(payload.ExpiresAt), nil
 }
 
 func (payload *Payload) GetIssuedAt() (*jwt.NumericDate, error) {
-	return &jwt.NumericDate{
-		Time: payload.IssuedAt,
-	}, nil
+	return jwt.NewNumericDate(payload.IssuedAt), nil
 }
 
 func (payload *Payload) GetNotBefore() (*jwt.NumericDate, error) {
-	return &jwt.NumericDate{
-		Time: *payload.NotBefore,
-	}, nil
+	if payload.NotBefore == nil {
+		return nil, nil
+	}
+	return jwt.NewNumericDate(*payload.NotBefore), nil
 }
+
 func (payload *Payload) GetIssuer() (string, error) {
 	return payload.Issuer, nil
 }

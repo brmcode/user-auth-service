@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/brmcode/user-auth-service/controller"
-	"github.com/brmcode/user-auth-service/database"
-	"github.com/brmcode/user-auth-service/pkg/auth"
-	"github.com/brmcode/user-auth-service/pkg/auth/jwt"
-	"github.com/brmcode/user-auth-service/pkg/auth/paseto"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth/jwt"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth/paseto"
+	"github.com/brmcode/user-auth-service/internal/adapter/controller"
+	"github.com/brmcode/user-auth-service/internal/adapter/database"
+	"github.com/brmcode/user-auth-service/internal/adapter/database/repository"
+	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
+	"github.com/brmcode/user-auth-service/internal/core/port"
+	"github.com/brmcode/user-auth-service/internal/core/service"
 	"github.com/brmcode/user-auth-service/pkg/config"
-	"github.com/brmcode/user-auth-service/repository"
-	"github.com/brmcode/user-auth-service/service"
 )
 
 func main() {
@@ -50,7 +51,7 @@ func main() {
 	userCtrl := controller.NewUserController(userServ)
 	authCtrl := controller.NewAuthController(userServ, authServ)
 
-	controller.SetTokenService(tokenServ, db)
+	middleware.Set(tokenServ, db)
 
 	router, err := controller.NewRouter(
 		config,
@@ -65,7 +66,7 @@ func main() {
 	router.Serve(":" + config.HTTP.Port)
 }
 
-func newTokenService(config *config.Auth) (auth.TokenService, error) {
+func newTokenService(config *config.Auth) (port.TokenService, error) {
 	switch config.TokenType {
 	case "paseto", "PASETO":
 		return paseto.New(config.SecretKey)

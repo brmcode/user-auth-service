@@ -1,12 +1,13 @@
 # 🚀 User Authentication Service
 
-A robust, modular user authentication and management service written in Go, supporting secure login, registration, token-based authentication (PASETO/JWT), and user/session management. Designed for extensibility and easy integration with other services.
+A robust, modular user authentication and management service written in Go, supporting secure login, registration, token-based authentication (PASETO/JWT), and user/session management. Built with clean architecture principles for maintainability and extensibility.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.20+-00ADD8?logo=go" alt="Go Version"/>
   <img src="https://img.shields.io/badge/PostgreSQL-16+-336791?logo=postgresql" alt="PostgreSQL"/>
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/Status-Active-brightgreen" alt="Status"/>
+  <img src="https://img.shields.io/badge/Architecture-Clean-blue" alt="Architecture"/>
 </p>
 
 ---
@@ -34,7 +35,7 @@ A robust, modular user authentication and management service written in Go, supp
 - 🪪 **Token-based authentication** (PASETO or JWT)
 - ♻️ **Access & refresh token** issuance and renewal
 - 🗂️ **Session management** with database persistence
-- 🧩 **Modular architecture** (controller, service, repository, domain)
+- 🏗️ **Clean architecture** with clear separation of concerns
 - 🐘 **PostgreSQL** integration
 - 🐳 **Dockerized** for easy deployment
 - ⚙️ **Environment-based configuration**
@@ -43,21 +44,35 @@ A robust, modular user authentication and management service written in Go, supp
 
 ## 🏗️ Architecture
 
+This project follows **Clean Architecture** principles with the following structure:
+
 ```
-main.go           # Entry point
-controller/       # HTTP handlers (API endpoints)
-service/          # Business logic
-repository/       # Database access
-domain/           # Core domain models (User, Session)
-dto/              # Data transfer objects (requests, responses)
-pkg/              # Token, config, and utility packages
-util/             # Utilities (password, random, etc.)
-database/         # Database connection and migration
-app.env           # Environment configuration
-Makefile          # Build and run commands
-docker-compose.yaml # Docker services (PostgreSQL)
-go.mod, go.sum    # Go modules
+main.go                    # Application entry point
+internal/                  # Application-specific code
+├── adapter/              # External interfaces (HTTP, DB, Auth)
+│   ├── controller/       # HTTP handlers and routing
+│   ├── database/         # Database connection and migration
+│   └── auth/             # Token service implementations
+└── core/                 # Business logic and domain
+    ├── domain/           # Core domain models
+    ├── service/          # Business logic services
+    ├── dto/              # Data transfer objects
+    └── port/             # Interface definitions
+pkg/                      # Reusable packages
+├── config/               # Configuration management
+└── util/                 # Utility functions
+repository/               # Data access layer
+app.env                   # Environment configuration
+Makefile                  # Build and run commands
+docker-compose.yaml       # Docker services
+go.mod, go.sum           # Go modules
 ```
+
+### Architecture Layers:
+- **Adapters**: Handle external concerns (HTTP, database, authentication)
+- **Core**: Contains business logic, domain models, and interfaces
+- **Repository**: Data access and persistence logic
+- **Pkg**: Reusable utilities and configuration
 
 ---
 
@@ -100,7 +115,7 @@ go.mod, go.sum    # Go modules
 ---
 
 ## 🔐 Authentication & Tokens
-- **Token Types:** Supports PASETO (default) and JWT (configurable)
+- **Token Types:** Supports PASETO and JWT (configurable via `TOKEN_TYPE`)
 - **Access Token:** Short-lived, used for API authentication
 - **Refresh Token:** Long-lived, used to obtain new access tokens
 - **Token Payload:** Includes user ID, role, issued/expiry times
@@ -121,7 +136,7 @@ DB_PASSWORD=secret
 DB_NAME=auth_db
 
 HTTP_PORT=8080
-TOKEN_TYPE=paseto
+TOKEN_TYPE=JWT
 SECRET_KEY=12345678910111213141516171819202
 TOKEN_DURATION=15m
 REFRESH_TOKEN_DURATION=168h
@@ -170,10 +185,10 @@ REFRESH_TOKEN_DURATION=168h
 ---
 
 ## 🧩 Extending & Customizing
-- Add new endpoints in `controller/` and wire them in `router.go`
-- Add business logic in `service/`
-- Add new models in `domain/` and update migrations in `database/db.go`
-- Switch token type (PASETO/JWT) via `app.env`
+- Add new endpoints in `internal/adapter/controller/` and wire them in `router.go`
+- Add business logic in `internal/core/service/`
+- Add new models in `internal/core/domain/` and update migrations in `internal/adapter/database/db.go`
+- Switch token type (PASETO/JWT) via `app.env` `TOKEN_TYPE` setting
 
 ---
 
@@ -182,17 +197,50 @@ REFRESH_TOKEN_DURATION=168h
 ```
 user-auth-service/
 ├── main.go
-├── controller/
-├── service/
-├── repository/
-├── domain/
-├── dto/
+├── internal/
+│   ├── adapter/
+│   │   ├── controller/
+│   │   │   ├── auth.go
+│   │   │   ├── middleware.go
+│   │   │   ├── router.go
+│   │   │   └── user.go
+│   │   ├── database/
+│   │   │   └── db.go
+│   │   └── auth/
+│   │       ├── payload.go
+│   │       ├── service.go
+│   │       ├── jwt/
+│   │       │   └── jwt.go
+│   │       └── paseto/
+│   │           └── paseto.go
+│   └── core/
+│       ├── domain/
+│       │   ├── session.go
+│       │   └── user.go
+│       ├── service/
+│       │   ├── auth.go
+│       │   └── user.go
+│       ├── dto/
+│       │   ├── auth.go
+│       │   ├── session_request.go
+│       │   ├── user_request.go
+│       │   └── response/
+│       │       └── error.go
+│       └── port/
 ├── pkg/
-├── util/
-├── database/
+│   ├── config/
+│   │   └── config.go
+│   └── util/
+│       ├── password.go
+│       └── random.go
+├── repository/
+│   ├── session.go
+│   └── user.go
 ├── app.env
 ├── docker-compose.yaml
 ├── Makefile
+├── go.mod
+├── go.sum
 └── README.md
 ```
 

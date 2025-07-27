@@ -12,6 +12,7 @@ require (
 	github.com/o1egl/paseto v1.0.0
 	github.com/spf13/viper v1.20.1
 	golang.org/x/crypto v0.39.0
+	golang.org/x/time v0.12.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.30.1
 )

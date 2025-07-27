@@ -3,7 +3,7 @@ package domain
 import (
 	"time"
 
-	"github.com/brmcode/user-auth-service/pkg/auth"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )

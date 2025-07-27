@@ -9,7 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/brmcode/user-auth-service/pkg/auth"
+	mw "github.com/brmcode/user-auth-service/internal/adapter/middleware"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -26,12 +27,13 @@ type Router struct {
 
 func NewRouter(
 	config *config.Configuration,
-	tokenServ auth.TokenService,
+	tokenServ port.TokenService,
 	userCtrl *UserController,
 	authCtrl *AuthController,
 
 ) (*Router, error) {
 	router := gin.Default()
+	router.Use(mw.RateLimitMiddleware())
 	router.Use(gin.Recovery())
 	router.Use(cors.Default())
 
@@ -47,10 +49,10 @@ func NewRouter(
 		}
 		user := api.Group("/users")
 		{
-			user.POST("", Authorized(ROLE_ADMIN), userCtrl.CreateUser)
-			user.GET("/:username", Authorized(), userCtrl.GetUser)
-			user.PUT("/:username", Authorized(), userCtrl.UpdateUser)
-			user.DELETE("/:username", Authorized(), userCtrl.DeleteUser)
+			user.POST("", mw.Authorized(ROLE_ADMIN), userCtrl.CreateUser)
+			user.GET("/:username", mw.Authorized(), userCtrl.GetUser)
+			user.PUT("/:username", mw.Authorized(), userCtrl.UpdateUser)
+			user.DELETE("/:username", mw.Authorized(), userCtrl.DeleteUser)
 		}
 	}
 

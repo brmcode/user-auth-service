@@ -1,17 +1,10 @@
 package repository
 
 import (
-	"github.com/brmcode/user-auth-service/database"
-	"github.com/brmcode/user-auth-service/domain"
+	"github.com/brmcode/user-auth-service/internal/adapter/database"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 )
-
-type UserRepository interface {
-	Create(user *domain.User) (*domain.User, error)
-	Get(username string) (*domain.User, error)
-	GetByEmailAndRole(email string, role string) (*domain.User, error)
-	Update(user *domain.User) (*domain.User, error)
-	Delete(user *domain.User) error
-}
 
 type userRepo struct {
 	db *database.DB
@@ -60,6 +53,6 @@ func (u *userRepo) Update(user *domain.User) (*domain.User, error) {
 }
 
 // NewUserRepository creates a new user repository instance
-func NewUserRepository(db *database.DB) UserRepository {
+func NewUserRepository(db *database.DB) port.UserRepository {
 	return &userRepo{db: db}
 }

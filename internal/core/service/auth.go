@@ -6,29 +6,23 @@ import (
 	"log"
 	"time"
 
-	"github.com/brmcode/user-auth-service/domain"
-	"github.com/brmcode/user-auth-service/dto"
-	"github.com/brmcode/user-auth-service/dto/response"
-	"github.com/brmcode/user-auth-service/pkg/auth"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
+	dto "github.com/brmcode/user-auth-service/internal/core/dto/common"
+	"github.com/brmcode/user-auth-service/internal/core/dto/request"
+	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/brmcode/user-auth-service/pkg/util"
-	"github.com/brmcode/user-auth-service/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
-type AuthenticationService interface {
-	Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUserResponse, *response.Error)
-	Register(req dto.CreateUserRequest) (*domain.User, *response.Error)
-	ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error)
-}
-
 type authService struct {
 	config       *config.Auth
-	userRepo     repository.UserRepository
-	sessionRepo  repository.SessionRepository
-	tokenService auth.TokenService
+	userRepo     port.UserRepository
+	sessionRepo  port.SessionRepository
+	tokenService port.TokenService
 }
 
 // ReNewAccessToken implements AuthenticationService.
@@ -126,7 +120,7 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 }
 
 // Register implements AuthenticationService.
-func (a *authService) Register(req dto.CreateUserRequest) (*domain.User, *response.Error) {
+func (a *authService) Register(req request.CreateUserRequest) (*domain.User, *response.Error) {
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		return nil, response.NewError(500, "failed to hash password")
@@ -154,7 +148,7 @@ func (a *authService) Register(req dto.CreateUserRequest) (*domain.User, *respon
 	return createdUser, nil
 }
 
-func NewAuthenticationService(config *config.Auth, userRepo repository.UserRepository, sessionRepo repository.SessionRepository, tokenService auth.TokenService) AuthenticationService {
+func NewAuthenticationService(config *config.Auth, userRepo port.UserRepository, sessionRepo port.SessionRepository, tokenService port.TokenService) port.AuthenticationService {
 	return &authService{
 		config:       config,
 		userRepo:     userRepo,

@@ -3,28 +3,23 @@ package service
 import (
 	"errors"
 
-	"github.com/brmcode/user-auth-service/domain"
-	"github.com/brmcode/user-auth-service/dto"
-	"github.com/brmcode/user-auth-service/dto/response"
+	"github.com/brmcode/user-auth-service/internal/core/domain"
+
+	"github.com/brmcode/user-auth-service/internal/core/dto/request"
+	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/util"
-	"github.com/brmcode/user-auth-service/repository"
+
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
-type UserService interface {
-	CreateUser(req dto.CreateUserRequest) (*domain.User, *response.Error)
-	GetUser(username string) (*domain.User, *response.Error)
-	UpdateUser(req dto.UpdateUserRequest) (*domain.User, *response.Error)
-	DeleteUser(username string) *response.Error
-}
-
 type userServ struct {
-	userRepo repository.UserRepository
+	userRepo port.UserRepository
 }
 
 // CreateUser implements UserService.
-func (u *userServ) CreateUser(req dto.CreateUserRequest) (*domain.User, *response.Error) {
+func (u *userServ) CreateUser(req request.CreateUserRequest) (*domain.User, *response.Error) {
 
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
@@ -87,7 +82,7 @@ func (u *userServ) GetUser(username string) (*domain.User, *response.Error) {
 }
 
 // UpdateUser implements UserService.
-func (u *userServ) UpdateUser(req dto.UpdateUserRequest) (*domain.User, *response.Error) {
+func (u *userServ) UpdateUser(req request.UpdateUserRequest) (*domain.User, *response.Error) {
 	user, err := u.userRepo.Get(req.Username)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -109,6 +104,6 @@ func (u *userServ) UpdateUser(req dto.UpdateUserRequest) (*domain.User, *respons
 	return updatedUser, nil
 }
 
-func NewUserService(userRepo repository.UserRepository) UserService {
+func NewUserService(userRepo port.UserRepository) port.UserService {
 	return &userServ{userRepo: userRepo}
 }
