@@ -85,6 +85,10 @@ go.mod, go.sum           # Go modules
 
 ## 📡 API Endpoints
 
+> 📋 **Testing**: Download the Postman collection for ready-to-use API requests with examples and authentication tokens.
+>
+> [📥 Download Postman Collection](user-auth-service.postman_collection.json)
+
 ### 🔑 Auth
 | Method | Endpoint                  | Description                                 |
 |--------|---------------------------|---------------------------------------------|
