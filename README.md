@@ -1,13 +1,13 @@
 # 🚀 User Authentication Service
 
-A robust, modular user authentication and management service written in Go, supporting secure login, registration, token-based authentication (PASETO/JWT), and user/session management. Built with clean architecture principles for maintainability and extensibility.
+A robust, modular user authentication and management service written in Go, supporting secure login, registration, token-based authentication (PASETO/JWT), and user/session management. Built with hexagonal architecture principles for maintainability and extensibility.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.20+-00ADD8?logo=go" alt="Go Version"/>
   <img src="https://img.shields.io/badge/PostgreSQL-16+-336791?logo=postgresql" alt="PostgreSQL"/>
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/Status-Active-brightgreen" alt="Status"/>
-  <img src="https://img.shields.io/badge/Architecture-Clean-blue" alt="Architecture"/>
+  <img src="https://img.shields.io/badge/Architecture-Hexagonal-blue" alt="Architecture"/>
 </p>
 
 ---
@@ -35,7 +35,8 @@ A robust, modular user authentication and management service written in Go, supp
 - 🪪 **Token-based authentication** (PASETO or JWT)
 - ♻️ **Access & refresh token** issuance and renewal
 - 🗂️ **Session management** with database persistence
-- 🏗️ **Clean architecture** with clear separation of concerns
+- 🏗️ **Hexagonal architecture** with clear separation of concerns
+- 🚦 **Rate limiting** middleware for API protection
 - 🐘 **PostgreSQL** integration
 - 🐳 **Dockerized** for easy deployment
 - ⚙️ **Environment-based configuration**
@@ -44,7 +45,7 @@ A robust, modular user authentication and management service written in Go, supp
 
 ## 🏗️ Architecture
 
-This project follows **Clean Architecture** principles with the following structure:
+This project follows **Hexagonal Architecture** principles with the following structure:
 
 ```
 main.go                    # Application entry point
@@ -52,16 +53,20 @@ internal/                  # Application-specific code
 ├── adapter/              # External interfaces (HTTP, DB, Auth)
 │   ├── controller/       # HTTP handlers and routing
 │   ├── database/         # Database connection and migration
+│   │   └── repository/   # Data access implementations
+│   ├── middleware/       # HTTP middleware (auth, rate limiting)
 │   └── auth/             # Token service implementations
 └── core/                 # Business logic and domain
     ├── domain/           # Core domain models
     ├── service/          # Business logic services
     ├── dto/              # Data transfer objects
+    │   ├── common/       # Shared DTOs
+    │   ├── request/      # Request DTOs
+    │   └── response/     # Response DTOs
     └── port/             # Interface definitions
 pkg/                      # Reusable packages
 ├── config/               # Configuration management
 └── util/                 # Utility functions
-repository/               # Data access layer
 app.env                   # Environment configuration
 Makefile                  # Build and run commands
 docker-compose.yaml       # Docker services
@@ -69,9 +74,9 @@ go.mod, go.sum           # Go modules
 ```
 
 ### Architecture Layers:
-- **Adapters**: Handle external concerns (HTTP, database, authentication)
+- **Adapters**: Handle external concerns (HTTP, database, authentication, middleware)
 - **Core**: Contains business logic, domain models, and interfaces
-- **Repository**: Data access and persistence logic
+- **Ports**: Define contracts between layers
 - **Pkg**: Reusable utilities and configuration
 
 ---
@@ -92,6 +97,10 @@ go.mod, go.sum           # Go modules
 | GET    | `/api/users/:username`  | Get user details (self only)       |
 | PUT    | `/api/users/:username`  | Update user details (self only)    |
 | DELETE | `/api/users/:username`  | Delete user (self only)            |
+
+### 🚦 Rate Limiting
+- **Rate Limit**: 40 requests per second
+- **Middleware**: Applied globally to all endpoints
 
 ---
 
@@ -136,7 +145,7 @@ DB_PASSWORD=secret
 DB_NAME=auth_db
 
 HTTP_PORT=8080
-TOKEN_TYPE=JWT
+TOKEN_TYPE=jwt
 SECRET_KEY=12345678910111213141516171819202
 TOKEN_DURATION=15m
 REFRESH_TOKEN_DURATION=168h
@@ -188,6 +197,7 @@ REFRESH_TOKEN_DURATION=168h
 - Add new endpoints in `internal/adapter/controller/` and wire them in `router.go`
 - Add business logic in `internal/core/service/`
 - Add new models in `internal/core/domain/` and update migrations in `internal/adapter/database/db.go`
+- Add middleware in `internal/adapter/middleware/`
 - Switch token type (PASETO/JWT) via `app.env` `TOKEN_TYPE` setting
 
 ---
@@ -201,14 +211,18 @@ user-auth-service/
 │   ├── adapter/
 │   │   ├── controller/
 │   │   │   ├── auth.go
-│   │   │   ├── middleware.go
 │   │   │   ├── router.go
 │   │   │   └── user.go
 │   │   ├── database/
-│   │   │   └── db.go
+│   │   │   ├── db.go
+│   │   │   └── repository/
+│   │   │       ├── session.go
+│   │   │       └── user.go
+│   │   ├── middleware/
+│   │   │   ├── auth.go
+│   │   │   └── ratelimit.go
 │   │   └── auth/
 │   │       ├── payload.go
-│   │       ├── service.go
 │   │       ├── jwt/
 │   │       │   └── jwt.go
 │   │       └── paseto/
@@ -221,21 +235,23 @@ user-auth-service/
 │       │   ├── auth.go
 │       │   └── user.go
 │       ├── dto/
-│       │   ├── auth.go
-│       │   ├── session_request.go
-│       │   ├── user_request.go
+│       │   ├── common/
+│       │   │   └── auth.go
+│       │   ├── request/
+│       │   │   ├── session_request.go
+│       │   │   └── user_request.go
 │       │   └── response/
 │       │       └── error.go
 │       └── port/
+│           ├── auth.go
+│           ├── session.go
+│           └── user.go
 ├── pkg/
 │   ├── config/
 │   │   └── config.go
 │   └── util/
 │       ├── password.go
 │       └── random.go
-├── repository/
-│   ├── session.go
-│   └── user.go
 ├── app.env
 ├── docker-compose.yaml
 ├── Makefile
