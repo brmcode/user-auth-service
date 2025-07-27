@@ -3,26 +3,32 @@ package controller
 import (
 	"net/http"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	dto "github.com/brmcode/user-auth-service/internal/core/dto/common"
-	"github.com/brmcode/user-auth-service/internal/core/dto/request"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
 )
 
 type AuthController struct {
+	validator   *validator.Validator
 	userService port.UserService
 	authService port.AuthenticationService
 }
 
-func NewAuthController(userService port.UserService, authService port.AuthenticationService) *AuthController {
-	return &AuthController{userService: userService, authService: authService}
+func NewAuthController(validator *validator.Validator, userService port.UserService, authService port.AuthenticationService) *AuthController {
+	return &AuthController{validator: validator, userService: userService, authService: authService}
 }
 
 func (a *AuthController) Login(ctx *gin.Context) {
 	var input dto.LoginModel
 
 	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		return
+	}
+
+	if err := a.validator.Validate(input); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
 		return
 	}
@@ -54,9 +60,14 @@ func (a *AuthController) RefreshToken(ctx *gin.Context) {
 }
 
 func (a *AuthController) Register(ctx *gin.Context) {
-	var req request.CreateUserRequest
+	var req dto.RegisterUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		return
+	}
+
+	if err := a.validator.Validate(req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
 		return
 	}
