@@ -8,7 +8,7 @@ run-app:
 	go run main.go
 
 docker-up:
-	docker-compose up --build -d
+	docker compose up --build -d
 
 docker-down:
 	docker compose down
