@@ -7,8 +7,10 @@ dropdb:
 run-app:
 	go run main.go
 
-docker-up:
+compose-up:
 	docker compose up -d
 
-docker-down:
+compose-down:
 	docker compose down
+
+.PHONY: createdb dropdb run-app compose-up compose-down
