@@ -8,4 +8,6 @@ import (
 type SessionRepository interface {
 	Create(session *domain.Session) (*domain.Session, error)
 	Get(id uuid.UUID) (*domain.Session, error)
+	GetByToken(token string) (*domain.Session, error)
+	Update(session *domain.Session) (*domain.Session, error)
 }

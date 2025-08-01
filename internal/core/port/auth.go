@@ -19,4 +19,6 @@ type AuthenticationService interface {
 type TokenService interface {
 	GenerateToken(username string, role string, duration time.Duration) (string, *auth.Payload, error)
 	VerifyToken(tokenString string) (*auth.Payload, error)
+	GenerateRefreshToken(username string, role string, duration time.Duration) (string, *auth.Payload, error)
+	VerifyRefreshToken(tokenString string) (*auth.Payload, error)
 }

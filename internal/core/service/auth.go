@@ -26,14 +26,14 @@ type authService struct {
 
 // ReNewAccessToken implements AuthenticationService.
 func (a *authService) ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error) {
-	refreshPayload, err := a.tokenService.VerifyToken(req.RefreshToken)
+	refreshPayload, err := a.tokenService.VerifyRefreshToken(req.RefreshToken)
 	if err != nil {
 		return nil, response.NewError(401, err.Error())
 	}
 
 	session, err := a.sessionRepo.Get(refreshPayload.ID)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, response.NewError(404, "session not found")
 		}
 		return nil, response.NewError(500, err.Error())
@@ -57,8 +57,14 @@ func (a *authService) ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.Re
 
 	accessToken, accessPayload, err := a.tokenService.GenerateToken(refreshPayload.Username, refreshPayload.Role, a.config.TokenDuration)
 	if err != nil {
-		log.Printf("Error: %s", err.Error())
 		return nil, response.NewError(500, fmt.Sprintf("could not generate token: %s", err.Error()))
+	}
+
+	session.ExpiresAt = time.Now().Add(a.config.TokenDuration)
+
+	_, err = a.sessionRepo.Update(session)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
 	}
 
 	return &dto.ReNewAccessTokenResponse{AccessToken: accessToken, AccessTokenExpriresAt: accessPayload.ExpiresAt}, nil
@@ -86,7 +92,7 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 		return nil, response.NewError(500, fmt.Sprintf("could not generate token: %s", err.Error()))
 	}
 
-	refresh_token, refreshPayload, err := a.tokenService.GenerateToken(user.Username, user.Role, a.config.RefreshTokenDuration)
+	refresh_token, refreshPayload, err := a.tokenService.GenerateRefreshToken(user.Username, user.Role, a.config.RefreshTokenDuration)
 	if err != nil {
 		log.Printf("Error: %s", err.Error())
 		return nil, response.NewError(500, fmt.Sprintf("could not generate refresh token: %s", err.Error()))
