@@ -32,8 +32,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return nil, response.NewError(401, err.Error())
 	}
 
-	log.Println(refreshPayload.ExpiresAt)
-
 	var session *domain.Session
 	cacheKey := util.GenerateCacheKey("session", refreshPayload.ID)
 	cacheSession, err := a.cache.Get(ctx, cacheKey)
