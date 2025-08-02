@@ -8,9 +8,10 @@ import (
 
 type (
 	Configuration struct {
-		DB   *DB
-		HTTP *HTTP
-		Auth *Auth
+		DB    *DB
+		HTTP  *HTTP
+		Auth  *Auth
+		Redis *Redis
 	}
 
 	DB struct {
@@ -31,6 +32,12 @@ type (
 		TokenType            string
 		TokenDuration        time.Duration
 		RefreshTokenDuration time.Duration
+	}
+
+	Redis struct {
+		Addr     string
+		Password string
+		TTL      time.Duration
 	}
 )
 
@@ -60,6 +67,12 @@ func New(path string) (config *Configuration, err error) {
 		RefreshTokenDuration: viper.GetDuration("REFRESH_TOKEN_DURATION"),
 	}
 
-	config = &Configuration{DB: db, HTTP: http, Auth: auth}
+	redis := &Redis{
+		Addr:     viper.GetString("REDIS_ADDR"),
+		Password: viper.GetString("REDIS_PASSWORD"),
+		TTL:      viper.GetDuration("REDIS_TTL"),
+	}
+
+	config = &Configuration{DB: db, HTTP: http, Auth: auth, Redis: redis}
 	return
 }

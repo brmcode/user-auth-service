@@ -47,11 +47,6 @@ func (p *PasetoService) VerifyRefreshToken(tokenString string) (*auth.Payload, e
 		return nil, fmt.Errorf("invalid payload format: %w", err)
 	}
 
-	// Check expiration
-	if time.Now().After(payload.ExpiresAt) {
-		return nil, fmt.Errorf("refresh token expired")
-	}
-
 	return &payload, nil
 }
 

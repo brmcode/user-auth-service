@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/auth/jwt"
 	"github.com/brmcode/user-auth-service/internal/adapter/auth/paseto"
 	"github.com/brmcode/user-auth-service/internal/adapter/controller"
-	"github.com/brmcode/user-auth-service/internal/adapter/database"
-	"github.com/brmcode/user-auth-service/internal/adapter/database/repository"
 	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
+	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
+	"github.com/brmcode/user-auth-service/internal/adapter/storage/database/repository"
+	"github.com/brmcode/user-auth-service/internal/adapter/storage/redis"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/internal/core/service"
@@ -36,6 +38,14 @@ func main() {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
+	ctx := context.Background()
+	cache, err := redis.New(ctx, config.Redis)
+	if err != nil {
+		log.Fatalf("failed to connect to cache: %v", err)
+	}
+
+	defer cache.Close()
+
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 
@@ -47,7 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
-	authServ := service.NewAuthenticationService(config.Auth, userRepo, sessionRepo, tokenServ)
+	authServ := service.NewAuthenticationService(config.Auth, userRepo, sessionRepo, tokenServ, cache)
 
 	validator := validator.NewValidator()
 	userCtrl := controller.NewUserController(validator, userServ)

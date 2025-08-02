@@ -22,21 +22,38 @@ type authService struct {
 	userRepo     port.UserRepository
 	sessionRepo  port.SessionRepository
 	tokenService port.TokenService
+	cache        port.CacheRepository
 }
 
 // ReNewAccessToken implements AuthenticationService.
-func (a *authService) ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error) {
+func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error) {
 	refreshPayload, err := a.tokenService.VerifyRefreshToken(req.RefreshToken)
 	if err != nil {
 		return nil, response.NewError(401, err.Error())
 	}
 
-	session, err := a.sessionRepo.Get(refreshPayload.ID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, response.NewError(404, "session not found")
+	log.Println(refreshPayload.ExpiresAt)
+
+	var session *domain.Session
+	cacheKey := util.GenerateCacheKey("session", refreshPayload.ID)
+	cacheSession, err := a.cache.Get(ctx, cacheKey)
+	cacheHit := false
+	if err == nil && len(cacheSession) > 0 {
+		if err := util.Deserialize(cacheSession, &session); err == nil {
+			cacheHit = true
+			log.Println("session cache hit")
 		}
-		return nil, response.NewError(500, err.Error())
+	}
+
+	if !cacheHit {
+		log.Println("session cache miss")
+		session, err = a.sessionRepo.Get(refreshPayload.ID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, response.NewError(404, "session not found")
+			}
+			return nil, response.NewError(500, err.Error())
+		}
 	}
 
 	if session.IsBlocked {
@@ -60,15 +77,29 @@ func (a *authService) ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.Re
 		return nil, response.NewError(500, fmt.Sprintf("could not generate token: %s", err.Error()))
 	}
 
-	session.ExpiresAt = time.Now().Add(a.config.TokenDuration)
+	session.ExpiresAt = time.Now().Add(a.config.RefreshTokenDuration)
 
-	_, err = a.sessionRepo.Update(session)
+	updatedSession, err := a.sessionRepo.Update(session)
 	if err != nil {
 		return nil, response.NewError(500, err.Error())
 	}
 
-	return &dto.ReNewAccessTokenResponse{AccessToken: accessToken, AccessTokenExpriresAt: accessPayload.ExpiresAt}, nil
+	_ = a.cache.Delete(ctx, cacheKey)
 
+	sessionSerialized, err := util.Serialize(updatedSession)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = a.cache.Set(ctx, cacheKey, sessionSerialized, time.Until(updatedSession.ExpiresAt))
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	return &dto.ReNewAccessTokenResponse{
+		AccessToken:           accessToken,
+		AccessTokenExpriresAt: accessPayload.ExpiresAt,
+	}, nil
 }
 
 // Login implements AuthenticationService.
@@ -114,6 +145,18 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 		return nil, response.NewError(500, err.Error())
 	}
 
+	cacheKey := util.GenerateCacheKey("session", refreshPayload.ID)
+	sessionSerialized, err := util.Serialize(session)
+
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = a.cache.Set(ctx, cacheKey, sessionSerialized, time.Until(refreshPayload.ExpiresAt))
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
 	return &dto.LoginUserResponse{
 		SessionID:             session.ID,
 		AccessToken:           accessToken,
@@ -153,11 +196,18 @@ func (a *authService) Register(req dto.RegisterUserRequest) (*domain.User, *resp
 	return createdUser, nil
 }
 
-func NewAuthenticationService(config *config.Auth, userRepo port.UserRepository, sessionRepo port.SessionRepository, tokenService port.TokenService) port.AuthenticationService {
+func NewAuthenticationService(
+	config *config.Auth,
+	userRepo port.UserRepository,
+	sessionRepo port.SessionRepository,
+	tokenService port.TokenService,
+	cache port.CacheRepository,
+) port.AuthenticationService {
 	return &authService{
 		config:       config,
 		userRepo:     userRepo,
 		sessionRepo:  sessionRepo,
 		tokenService: tokenService,
+		cache:        cache,
 	}
 }
