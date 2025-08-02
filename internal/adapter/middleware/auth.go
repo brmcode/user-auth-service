@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/database"
+	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"

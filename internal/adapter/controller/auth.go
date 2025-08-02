@@ -50,7 +50,7 @@ func (a *AuthController) RefreshToken(ctx *gin.Context) {
 		return
 	}
 
-	res, resErr := a.authService.ReNewAccessToken(input)
+	res, resErr := a.authService.ReNewAccessToken(ctx, input)
 	if resErr != nil {
 		ctx.JSON(resErr.Code, resErr)
 		return

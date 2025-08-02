@@ -13,10 +13,12 @@ import (
 type AuthenticationService interface {
 	Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUserResponse, *response.Error)
 	Register(req dto.RegisterUserRequest) (*domain.User, *response.Error)
-	ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error)
+	ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error)
 }
 
 type TokenService interface {
 	GenerateToken(username string, role string, duration time.Duration) (string, *auth.Payload, error)
 	VerifyToken(tokenString string) (*auth.Payload, error)
+	GenerateRefreshToken(username string, role string, duration time.Duration) (string, *auth.Payload, error)
+	VerifyRefreshToken(tokenString string) (*auth.Payload, error)
 }

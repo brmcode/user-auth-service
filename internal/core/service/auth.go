@@ -22,21 +22,36 @@ type authService struct {
 	userRepo     port.UserRepository
 	sessionRepo  port.SessionRepository
 	tokenService port.TokenService
+	cache        port.CacheRepository
 }
 
 // ReNewAccessToken implements AuthenticationService.
-func (a *authService) ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error) {
-	refreshPayload, err := a.tokenService.VerifyToken(req.RefreshToken)
+func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error) {
+	refreshPayload, err := a.tokenService.VerifyRefreshToken(req.RefreshToken)
 	if err != nil {
 		return nil, response.NewError(401, err.Error())
 	}
 
-	session, err := a.sessionRepo.Get(refreshPayload.ID)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, response.NewError(404, "session not found")
+	var session *domain.Session
+	cacheKey := util.GenerateCacheKey("session", refreshPayload.ID)
+	cacheSession, err := a.cache.Get(ctx, cacheKey)
+	cacheHit := false
+	if err == nil && len(cacheSession) > 0 {
+		if err := util.Deserialize(cacheSession, &session); err == nil {
+			cacheHit = true
+			log.Println("session cache hit")
 		}
-		return nil, response.NewError(500, err.Error())
+	}
+
+	if !cacheHit {
+		log.Println("session cache miss")
+		session, err = a.sessionRepo.Get(refreshPayload.ID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, response.NewError(404, "session not found")
+			}
+			return nil, response.NewError(500, err.Error())
+		}
 	}
 
 	if session.IsBlocked {
@@ -57,12 +72,32 @@ func (a *authService) ReNewAccessToken(req dto.ReNewAccessTokenRequest) (*dto.Re
 
 	accessToken, accessPayload, err := a.tokenService.GenerateToken(refreshPayload.Username, refreshPayload.Role, a.config.TokenDuration)
 	if err != nil {
-		log.Printf("Error: %s", err.Error())
 		return nil, response.NewError(500, fmt.Sprintf("could not generate token: %s", err.Error()))
 	}
 
-	return &dto.ReNewAccessTokenResponse{AccessToken: accessToken, AccessTokenExpriresAt: accessPayload.ExpiresAt}, nil
+	session.ExpiresAt = time.Now().Add(a.config.RefreshTokenDuration)
 
+	updatedSession, err := a.sessionRepo.Update(session)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	_ = a.cache.Delete(ctx, cacheKey)
+
+	sessionSerialized, err := util.Serialize(updatedSession)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = a.cache.Set(ctx, cacheKey, sessionSerialized, time.Until(updatedSession.ExpiresAt))
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	return &dto.ReNewAccessTokenResponse{
+		AccessToken:           accessToken,
+		AccessTokenExpriresAt: accessPayload.ExpiresAt,
+	}, nil
 }
 
 // Login implements AuthenticationService.
@@ -86,7 +121,7 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 		return nil, response.NewError(500, fmt.Sprintf("could not generate token: %s", err.Error()))
 	}
 
-	refresh_token, refreshPayload, err := a.tokenService.GenerateToken(user.Username, user.Role, a.config.RefreshTokenDuration)
+	refresh_token, refreshPayload, err := a.tokenService.GenerateRefreshToken(user.Username, user.Role, a.config.RefreshTokenDuration)
 	if err != nil {
 		log.Printf("Error: %s", err.Error())
 		return nil, response.NewError(500, fmt.Sprintf("could not generate refresh token: %s", err.Error()))
@@ -104,6 +139,18 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 		ExpiresAt:    refreshPayload.ExpiresAt,
 	})
 
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	cacheKey := util.GenerateCacheKey("session", refreshPayload.ID)
+	sessionSerialized, err := util.Serialize(session)
+
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = a.cache.Set(ctx, cacheKey, sessionSerialized, time.Until(refreshPayload.ExpiresAt))
 	if err != nil {
 		return nil, response.NewError(500, err.Error())
 	}
@@ -147,11 +194,18 @@ func (a *authService) Register(req dto.RegisterUserRequest) (*domain.User, *resp
 	return createdUser, nil
 }
 
-func NewAuthenticationService(config *config.Auth, userRepo port.UserRepository, sessionRepo port.SessionRepository, tokenService port.TokenService) port.AuthenticationService {
+func NewAuthenticationService(
+	config *config.Auth,
+	userRepo port.UserRepository,
+	sessionRepo port.SessionRepository,
+	tokenService port.TokenService,
+	cache port.CacheRepository,
+) port.AuthenticationService {
 	return &authService{
 		config:       config,
 		userRepo:     userRepo,
 		sessionRepo:  sessionRepo,
 		tokenService: tokenService,
+		cache:        cache,
 	}
 }

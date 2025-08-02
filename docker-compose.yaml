@@ -7,6 +7,16 @@ services:
       - POSTGRES_DB=auth_db
     ports:
       - "5432:5432"
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  redisinsight:
+    image: redis/redisinsight:latest
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
   api:
     build:
       context: .
@@ -19,4 +29,3 @@ services:
       - app.env
     entrypoint: [ "/app/wait-for.sh", "postgres:5432", "--" ]
     command: [ "/app/main" ]
-
