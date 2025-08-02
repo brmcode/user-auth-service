@@ -25,7 +25,8 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+      - redis
     env_file:
       - app.env
-    entrypoint: [ "/app/wait-for.sh", "postgres:5432", "--" ]
+    entrypoint: [ "/app/wait-for.sh", "postgres:5432", "--", "/app/wait-for.sh", "redis:6379", "--" ]
     command: [ "/app/main" ]
