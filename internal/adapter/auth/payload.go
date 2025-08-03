@@ -63,10 +63,13 @@ func (payload *Payload) GetAudience() (jwt.ClaimStrings, error) {
 	return jwt.ClaimStrings(payload.Audience), nil
 }
 
-func NewPayload(username string, role string, duration time.Duration) (*Payload, error) {
-	tokenID, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
+func NewPayload(tokenID uuid.UUID, username string, role string, duration time.Duration) (*Payload, error) {
+	if tokenID == uuid.Nil {
+		var err error
+		tokenID, err = uuid.NewRandom()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	now := time.Now()

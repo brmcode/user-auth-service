@@ -11,6 +11,11 @@ type sessionRepo struct {
 	db *database.DB
 }
 
+// BlockAllSessions implements port.SessionRepository.
+func (s *sessionRepo) BlockAllSessions(username string) error {
+	return s.db.Model(&domain.Session{}).Where("username = ?", username).Update("is_blocked", true).Error
+}
+
 // GetByToken implements port.SessionRepository.
 func (s *sessionRepo) GetByToken(token string) (*domain.Session, error) {
 	var session domain.Session

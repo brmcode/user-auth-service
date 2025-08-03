@@ -10,4 +10,5 @@ type SessionRepository interface {
 	Get(id uuid.UUID) (*domain.Session, error)
 	GetByToken(token string) (*domain.Session, error)
 	Update(session *domain.Session) (*domain.Session, error)
+	BlockAllSessions(username string) error
 }
