@@ -8,6 +8,7 @@ import (
 	dto "github.com/brmcode/user-auth-service/internal/core/dto/common"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type AuthenticationService interface {
@@ -17,8 +18,6 @@ type AuthenticationService interface {
 }
 
 type TokenService interface {
-	GenerateToken(username string, role string, duration time.Duration) (string, *auth.Payload, error)
+	GenerateToken(tokenID uuid.UUID, username string, role string, duration time.Duration) (string, *auth.Payload, error)
 	VerifyToken(tokenString string) (*auth.Payload, error)
-	GenerateRefreshToken(username string, role string, duration time.Duration) (string, *auth.Payload, error)
-	VerifyRefreshToken(tokenString string) (*auth.Payload, error)
 }
