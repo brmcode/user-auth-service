@@ -2,12 +2,15 @@ package service
 
 import (
 	"errors"
+	"log"
 
 	"github.com/brmcode/user-auth-service/internal/core/domain"
+	"github.com/gin-gonic/gin"
 
 	"github.com/brmcode/user-auth-service/internal/core/dto/request"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
+	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/brmcode/user-auth-service/pkg/util"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -16,10 +19,12 @@ import (
 
 type userServ struct {
 	userRepo port.UserRepository
+	cache    port.CacheRepository
+	config   *config.Configuration
 }
 
 // CreateUser implements UserService.
-func (u *userServ) CreateUser(req request.CreateUserRequest) (*domain.User, *response.Error) {
+func (u *userServ) CreateUser(ctx *gin.Context, req request.CreateUserRequest) (*domain.User, *response.Error) {
 
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
@@ -45,17 +50,45 @@ func (u *userServ) CreateUser(req request.CreateUserRequest) (*domain.User, *res
 		return nil, response.NewError(500, err.Error())
 	}
 
+	cacheKey := util.GenerateCacheKey("user", createdUser.Username)
+	userSerialized, err := util.Serialize(createdUser)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = u.cache.Set(ctx, cacheKey, userSerialized, u.config.Redis.TTL)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = u.cache.DeleteByPrefix(ctx, "users:*")
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
 	return createdUser, nil
 }
 
 // DeleteUser implements UserService.
-func (u *userServ) DeleteUser(username string) *response.Error {
+func (u *userServ) DeleteUser(ctx *gin.Context, username string) *response.Error {
 	user, err := u.userRepo.Get(username)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return response.NewError(404, gorm.ErrRecordNotFound.Error())
 		}
 
+		return response.NewError(500, err.Error())
+	}
+
+	cacheKey := util.GenerateCacheKey("user", user.Username)
+
+	err = u.cache.Delete(ctx, cacheKey)
+	if err != nil {
+		return response.NewError(500, err.Error())
+	}
+
+	err = u.cache.DeleteByPrefix(ctx, "users:*")
+	if err != nil {
 		return response.NewError(500, err.Error())
 	}
 
@@ -68,8 +101,21 @@ func (u *userServ) DeleteUser(username string) *response.Error {
 }
 
 // GetUser implements UserService.
-func (u *userServ) GetUser(username string) (*domain.User, *response.Error) {
-	user, err := u.userRepo.Get(username)
+func (u *userServ) GetUser(ctx *gin.Context, username string) (*domain.User, *response.Error) {
+
+	var user *domain.User
+	cacheKey := util.GenerateCacheKey("user", username)
+	cacheUser, err := u.cache.Get(ctx, cacheKey)
+	if err == nil {
+		err = util.Deserialize(cacheUser, &user)
+		if err != nil {
+			return nil, response.NewError(500, err.Error())
+		}
+		log.Println("cache hit:", cacheKey)
+		return user, nil
+	}
+
+	user, err = u.userRepo.Get(username)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, response.NewError(404, gorm.ErrRecordNotFound.Error())
@@ -78,11 +124,20 @@ func (u *userServ) GetUser(username string) (*domain.User, *response.Error) {
 		return nil, response.NewError(500, err.Error())
 	}
 
+	userSerialized, err := util.Serialize(user)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+	err = u.cache.Set(ctx, cacheKey, userSerialized, u.config.Redis.TTL)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
 	return user, nil
 }
 
 // UpdateUser implements UserService.
-func (u *userServ) UpdateUser(req request.UpdateUserRequest) (*domain.User, *response.Error) {
+func (u *userServ) UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) (*domain.User, *response.Error) {
 	user, err := u.userRepo.Get(req.Username)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -101,9 +156,31 @@ func (u *userServ) UpdateUser(req request.UpdateUserRequest) (*domain.User, *res
 		return nil, response.NewError(500, err.Error())
 	}
 
+	cacheKey := util.GenerateCacheKey("user", updatedUser.Username)
+
+	err = u.cache.Delete(ctx, cacheKey)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	userSerialized, err := util.Serialize(updatedUser)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = u.cache.Set(ctx, cacheKey, userSerialized, u.config.Redis.TTL)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = u.cache.DeleteByPrefix(ctx, "users:*")
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
 	return updatedUser, nil
 }
 
-func NewUserService(userRepo port.UserRepository) port.UserService {
-	return &userServ{userRepo: userRepo}
+func NewUserService(userRepo port.UserRepository, cache port.CacheRepository, config *config.Configuration) port.UserService {
+	return &userServ{userRepo, cache, config}
 }

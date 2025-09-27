@@ -49,7 +49,7 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 
-	userServ := service.NewUserService(userRepo)
+	userServ := service.NewUserService(userRepo, cache, config)
 	if config.Auth.TokenType == "paseto" {
 
 	}

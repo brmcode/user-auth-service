@@ -4,6 +4,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/dto/request"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/gin-gonic/gin"
 )
 
 type UserRepository interface {
@@ -15,8 +16,8 @@ type UserRepository interface {
 }
 
 type UserService interface {
-	CreateUser(req request.CreateUserRequest) (*domain.User, *response.Error)
-	GetUser(username string) (*domain.User, *response.Error)
-	UpdateUser(req request.UpdateUserRequest) (*domain.User, *response.Error)
-	DeleteUser(username string) *response.Error
+	CreateUser(ctx *gin.Context, req request.CreateUserRequest) (*domain.User, *response.Error)
+	GetUser(ctx *gin.Context, username string) (*domain.User, *response.Error)
+	UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) (*domain.User, *response.Error)
+	DeleteUser(ctx *gin.Context, username string) *response.Error
 }
