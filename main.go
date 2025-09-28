@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
-	authServ := service.NewAuthenticationService(config.Auth, userRepo, sessionRepo, tokenServ, cache)
+	authServ := service.NewAuthenticationService(config, userRepo, sessionRepo, tokenServ, cache)
 
 	validator := validator.NewValidator()
 	userCtrl := controller.NewUserController(validator, userServ)
