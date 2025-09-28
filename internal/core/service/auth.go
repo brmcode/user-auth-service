@@ -18,7 +18,7 @@ import (
 )
 
 type authService struct {
-	config       *config.Auth
+	config       *config.Configuration
 	userRepo     port.UserRepository
 	sessionRepo  port.SessionRepository
 	tokenService port.TokenService
@@ -64,7 +64,7 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		uuid.Nil,
 		refreshPayload.Username,
 		refreshPayload.Role,
-		a.config.TokenDuration,
+		a.config.Auth.TokenDuration,
 	)
 	if err != nil {
 		return nil, response.NewError(500, fmt.Sprintf("could not generate new access token: %s", err.Error()))
@@ -75,7 +75,7 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		refreshPayload.ID,
 		refreshPayload.Username,
 		refreshPayload.Role,
-		a.config.RefreshTokenDuration,
+		a.config.Auth.RefreshTokenDuration,
 	)
 	if err != nil {
 		return nil, response.NewError(500, fmt.Sprintf("could not generate new refresh token: %s", err.Error()))
@@ -113,12 +113,12 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 	}
 
 	// Generate token
-	accessToken, accessPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.TokenDuration)
+	accessToken, accessPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.TokenDuration)
 	if err != nil {
 		return nil, response.NewError(500, fmt.Sprintf("could not generate access token: %s", err.Error()))
 	}
 
-	refresh_token, refreshPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.RefreshTokenDuration)
+	refresh_token, refreshPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.RefreshTokenDuration)
 	if err != nil {
 		return nil, response.NewError(500, fmt.Sprintf("could not generate refresh token: %s", err.Error()))
 	}
@@ -148,7 +148,7 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 }
 
 // Register implements AuthenticationService.
-func (a *authService) Register(req dto.RegisterUserRequest) (*domain.User, *response.Error) {
+func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) (*domain.User, *response.Error) {
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		return nil, response.NewError(500, "failed to hash password")
@@ -173,11 +173,27 @@ func (a *authService) Register(req dto.RegisterUserRequest) (*domain.User, *resp
 		return nil, response.NewError(500, err.Error())
 	}
 
+	cacheKey := util.GenerateCacheKey("user", createdUser.Username)
+	userSerialized, err := util.Serialize(createdUser)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = a.cache.Set(ctx, cacheKey, userSerialized, a.config.Redis.TTL)
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	err = a.cache.DeleteByPrefix(ctx, "users:*")
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
 	return createdUser, nil
 }
 
 func NewAuthenticationService(
-	config *config.Auth,
+	config *config.Configuration,
 	userRepo port.UserRepository,
 	sessionRepo port.SessionRepository,
 	tokenService port.TokenService,

@@ -72,7 +72,7 @@ func (a *AuthController) Register(ctx *gin.Context) {
 		return
 	}
 
-	user, resErr := a.authService.Register(req)
+	user, resErr := a.authService.Register(ctx, req)
 	if resErr != nil {
 		ctx.JSON(resErr.Code, resErr)
 		return

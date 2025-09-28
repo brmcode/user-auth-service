@@ -13,7 +13,7 @@ import (
 
 type AuthenticationService interface {
 	Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUserResponse, *response.Error)
-	Register(req dto.RegisterUserRequest) (*domain.User, *response.Error)
+	Register(ctx *gin.Context, req dto.RegisterUserRequest) (*domain.User, *response.Error)
 	ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) (*dto.ReNewAccessTokenResponse, *response.Error)
 }
 
