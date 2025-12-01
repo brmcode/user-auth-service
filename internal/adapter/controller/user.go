@@ -60,6 +60,11 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 
 func (u *UserController) UpdateUser(ctx *gin.Context) {
 	username := ctx.Param("username")
+	payload := domain.GetPayload(ctx)
+	if payload == nil {
+		ctx.JSON(http.StatusInternalServerError, response.NewError(500, "payload not found"))
+		return
+	}
 
 	var req request.UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -77,8 +82,13 @@ func (u *UserController) UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	if domain.GetUsername(ctx) != username {
+	if payload.Username != username {
 		ctx.JSON(http.StatusForbidden, response.NewError(403, "you are not allowed to update this user"))
+		return
+	}
+
+	if payload.Role != domain.ADMIN_ROLE && req.Role != payload.Role {
+		ctx.JSON(http.StatusForbidden, response.NewError(403, "insufficient permissions to change role"))
 		return
 	}
 

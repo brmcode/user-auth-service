@@ -59,7 +59,22 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return nil, response.NewError(401, "expired session")
 	}
 
-	// Step 4: Generate new access token
+	// Step 4: Ensure user still exists and their role matches the token
+	userOfsession, err := a.userRepo.Get(session.Username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, response.NewError(404, "invalid session: user data missing")
+		}
+		return nil, response.NewError(500, err.Error())
+	}
+	if userOfsession.Role != refreshPayload.Role {
+		if err := a.sessionRepo.BlockAllSessions(session.Username); err != nil {
+			return nil, response.NewError(500, fmt.Sprintf("failed to block sessions: %s", err.Error()))
+		}
+		return nil, response.NewError(401, "user role has changed: sessions have been invalidated, please login again")
+	}
+
+	// Step 5: Generate new access token
 	accessToken, accessPayload, err := a.tokenService.GenerateToken(
 		uuid.Nil,
 		refreshPayload.Username,
@@ -70,7 +85,7 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return nil, response.NewError(500, fmt.Sprintf("could not generate new access token: %s", err.Error()))
 	}
 
-	// Step 5: Generate new refresh token
+	// Step 6: Generate new refresh token
 	newRefreshToken, newRefreshPayload, err := a.tokenService.GenerateToken(
 		refreshPayload.ID,
 		refreshPayload.Username,
@@ -81,7 +96,7 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return nil, response.NewError(500, fmt.Sprintf("could not generate new refresh token: %s", err.Error()))
 	}
 
-	// Step 6: Update session with new refresh token and expiry
+	// Step 7: Update session with new refresh token and expiry
 	session.RefreshToken = newRefreshToken
 	session.ExpiresAt = newRefreshPayload.ExpiresAt
 
@@ -89,7 +104,7 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return nil, response.NewError(500, err.Error())
 	}
 
-	// Step 7: Return response
+	// Step 8: Return response
 	return &dto.ReNewAccessTokenResponse{
 		AccessToken:           accessToken,
 		AccessTokenExpriresAt: accessPayload.ExpiresAt,

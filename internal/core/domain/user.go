@@ -34,3 +34,18 @@ func GetUsername(ctx *gin.Context) string {
 	}
 	return value.(*auth.Payload).Username
 }
+func GetRole(ctx *gin.Context) string {
+	value, exists := ctx.Get("authPayloadKey")
+	if !exists {
+		return DEFAULT_USER
+	}
+	return value.(*auth.Payload).Role
+}
+
+func GetPayload(ctx *gin.Context) *auth.Payload {
+	value, exists := ctx.Get("authPayloadKey")
+	if !exists {
+		return nil
+	}
+	return value.(*auth.Payload)
+}
