@@ -26,7 +26,8 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	if err := config.InitOAuth(cfg.OAuth); err != nil {
+	err = config.InitOAuth(cfg.OAuth)
+	if err != nil {
 		log.Fatalf("failed to initialize OAuth: %v", err)
 	}
 
