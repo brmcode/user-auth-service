@@ -54,6 +54,7 @@ func (s *sessionRepo) Get(id uuid.UUID) (*domain.Session, error) {
 	return &session, nil
 }
 
+// NewSessionRepository creates a new session repository instance
 func NewSessionRepository(db *database.DB) port.SessionRepository {
 	return &sessionRepo{db: db}
 }

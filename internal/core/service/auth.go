@@ -19,16 +19,55 @@ import (
 )
 
 type authService struct {
-	config       *config.Configuration
-	userRepo     port.UserRepository
-	sessionRepo  port.SessionRepository
-	tokenService port.TokenService
-	cache        port.CacheRepository
+	config           *config.Configuration
+	userRepo         port.UserRepository
+	sessionRepo      port.SessionRepository
+	oauthAccountRepo port.OauthAccountRepository
+	tokenService     port.TokenService
+	cache            port.CacheRepository
 }
 
 // OAuthLogin implements port.AuthenticationService.
 func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) (*dto.LoginUserResponse, *response.Error) {
-	panic("unimplemented")
+	account, err := a.oauthAccountRepo.GetByProvider(provider, gUser.UserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// OAuth account doesn't exist, create new user and account
+			user := &domain.User{
+				Username:  util.RandomUsername(),
+				FirstName: gUser.FirstName,
+				LastName:  gUser.LastName,
+				Email:     gUser.Email,
+				Role:      domain.USER_ROLE,
+			}
+
+			createdUser, err := a.userRepo.Create(user)
+			if err != nil {
+				return nil, response.NewError(500, "failed to create user")
+			}
+
+			_, err = a.oauthAccountRepo.Create(&domain.OauthAccount{
+				ID:             uuid.New(),
+				Username:       createdUser.Username,
+				Provider:       provider,
+				ProviderUserID: gUser.UserID,
+				Email:          gUser.Email,
+			})
+			if err != nil {
+				return nil, response.NewError(500, "failed to create oauth account")
+			}
+
+			return a.issueSessionAndTokens(ctx, createdUser)
+		}
+		return nil, response.NewError(500, "failed to get oauth account")
+	}
+
+	// OAuth account exists, get the associated user
+	user, err := a.userRepo.Get(account.Username)
+	if err != nil {
+		return nil, response.NewError(500, "failed to get user")
+	}
+	return a.issueSessionAndTokens(ctx, user)
 }
 
 // ReNewAccessToken implements AuthenticationService.
@@ -181,11 +220,7 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) (*
 	return createdUser, nil
 }
 
-func (a *authService) issueSessionAndTokens(
-	ctx *gin.Context,
-	user *domain.User,
-) (*dto.LoginUserResponse, *response.Error) {
-
+func (a *authService) issueSessionAndTokens(ctx *gin.Context, user *domain.User) (*dto.LoginUserResponse, *response.Error) {
 	// Generate token
 	accessToken, accessPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.TokenDuration)
 	if err != nil {
@@ -223,14 +258,16 @@ func NewAuthenticationService(
 	config *config.Configuration,
 	userRepo port.UserRepository,
 	sessionRepo port.SessionRepository,
+	oauthAccountRepo port.OauthAccountRepository,
 	tokenService port.TokenService,
 	cache port.CacheRepository,
 ) port.AuthenticationService {
 	return &authService{
-		config:       config,
-		userRepo:     userRepo,
-		sessionRepo:  sessionRepo,
-		tokenService: tokenService,
-		cache:        cache,
+		config:           config,
+		userRepo:         userRepo,
+		sessionRepo:      sessionRepo,
+		oauthAccountRepo: oauthAccountRepo,
+		tokenService:     tokenService,
+		cache:            cache,
 	}
 }

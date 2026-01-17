@@ -21,12 +21,16 @@ import (
 func main() {
 	fmt.Println("Hello, World!")
 
-	config, err := config.New(".")
+	cfg, err := config.New(".")
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	db, err := database.New(config.DB)
+	if err := config.InitOAuth(cfg.OAuth); err != nil {
+		log.Fatalf("failed to initialize OAuth: %v", err)
+	}
+
+	db, err := database.New(cfg.DB)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
@@ -39,7 +43,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	cache, err := redis.New(ctx, config.Redis)
+	cache, err := redis.New(ctx, cfg.Redis)
 	if err != nil {
 		log.Fatalf("failed to connect to cache: %v", err)
 	}
@@ -48,34 +52,37 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
+	oauthAccountRepo := repository.NewOauthAccountRepository(db)
 
-	userServ := service.NewUserService(userRepo, cache, config)
-	if config.Auth.TokenType == "paseto" {
+	userServ := service.NewUserService(userRepo, cache, cfg)
+	if cfg.Auth.TokenType == "paseto" {
 
 	}
-	tokenServ, err := newTokenService(config.Auth)
+	tokenServ, err := newTokenService(cfg.Auth)
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
-	authServ := service.NewAuthenticationService(config, userRepo, sessionRepo, tokenServ, cache)
+	authServ := service.NewAuthenticationService(cfg, userRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
 
 	validator := validator.NewValidator()
 	userCtrl := controller.NewUserController(validator, userServ)
 	authCtrl := controller.NewAuthController(validator, userServ, authServ)
+	oauthCtrl := controller.NewOAuthController(authServ)
 
 	middleware.Set(tokenServ, db)
 
 	router, err := controller.NewRouter(
-		config,
+		cfg,
 		tokenServ,
 		userCtrl,
 		authCtrl,
+		oauthCtrl,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	router.Serve(":" + config.HTTP.Port)
+	router.Serve(":" + cfg.HTTP.Port)
 }
 
 func newTokenService(config *config.Auth) (port.TokenService, error) {
