@@ -12,6 +12,7 @@ type (
 		HTTP  *HTTP
 		Auth  *Auth
 		Redis *Redis
+		OAuth *OAuth
 	}
 
 	DB struct {
@@ -38,6 +39,14 @@ type (
 		Addr     string
 		Password string
 		TTL      time.Duration
+	}
+	OAuth struct {
+		GoogleClientID     string
+		GoogleClientSecret string
+		GoogleCallbackURL  string
+		GithubClientID     string
+		GithubClientSecret string
+		GithubCallbackURL  string
 	}
 )
 
@@ -73,6 +82,15 @@ func New(path string) (config *Configuration, err error) {
 		TTL:      viper.GetDuration("REDIS_TTL"),
 	}
 
-	config = &Configuration{DB: db, HTTP: http, Auth: auth, Redis: redis}
+	oAuth := &OAuth{
+		GoogleClientID:     viper.GetString("OAUTH_GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: viper.GetString("OAUTH_GOOGLE_CLIENT_SECRET"),
+		GoogleCallbackURL:  viper.GetString("OAUTH_GOOGLE_CALLBACK_URL"),
+		GithubClientID:     viper.GetString("OAUTH_GITHUB_CLIENT_ID"),
+		GithubClientSecret: viper.GetString("OAUTH_GITHUB_CLIENT_SECRET"),
+		GithubCallbackURL:  viper.GetString("OAUTH_GITHUB_CALLBACK_URL"),
+	}
+
+	config = &Configuration{DB: db, HTTP: http, Auth: auth, Redis: redis, OAuth: oAuth}
 	return
 }

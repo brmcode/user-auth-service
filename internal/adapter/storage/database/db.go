@@ -40,6 +40,7 @@ func (db *DB) Migrate() error {
 	return db.AutoMigrate(
 		&domain.User{},
 		&domain.Session{},
+		&domain.OauthAccount{},
 	)
 }
 

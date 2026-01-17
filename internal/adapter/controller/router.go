@@ -31,6 +31,7 @@ func NewRouter(
 	tokenServ port.TokenService,
 	userCtrl *UserController,
 	authCtrl *AuthController,
+	oauthCtrl *OAuthController,
 
 ) (*Router, error) {
 	router := gin.Default()
@@ -47,6 +48,11 @@ func NewRouter(
 			auth.POST("/login", authCtrl.Login)
 			auth.POST("/register", authCtrl.Register)
 			auth.POST("/refresh_token", authCtrl.RefreshToken)
+		}
+		oauth := auth.Group("/oauth")
+		{
+			oauth.GET("/:provider", oauthCtrl.Begin)
+			oauth.GET("/:provider/callback", oauthCtrl.Callback)
 		}
 		user := api.Group("/users")
 		{
