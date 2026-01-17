@@ -25,6 +25,7 @@ type User struct {
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 	Role              string         `gorm:"type:varchar(10);not null" json:"role"`
 	Session           Session        `gorm:"foreignKey:Username" json:"-"`
+	OauthAccounts     []OauthAccount `gorm:"foreignKey:Username" json:"-"`
 }
 
 func GetUsername(ctx *gin.Context) string {
@@ -34,6 +35,7 @@ func GetUsername(ctx *gin.Context) string {
 	}
 	return value.(*auth.Payload).Username
 }
+
 func GetRole(ctx *gin.Context) string {
 	value, exists := ctx.Get("authPayloadKey")
 	if !exists {

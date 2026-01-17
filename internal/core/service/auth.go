@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/markbates/goth"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +24,11 @@ type authService struct {
 	sessionRepo  port.SessionRepository
 	tokenService port.TokenService
 	cache        port.CacheRepository
+}
+
+// OAuthLogin implements port.AuthenticationService.
+func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) (*dto.LoginUserResponse, *response.Error) {
+	panic("unimplemented")
 }
 
 // ReNewAccessToken implements AuthenticationService.
@@ -127,39 +133,7 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) (*dto.LoginUs
 		return nil, response.NewError(400, "invalid credentials")
 	}
 
-	// Generate token
-	accessToken, accessPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.TokenDuration)
-	if err != nil {
-		return nil, response.NewError(500, fmt.Sprintf("could not generate access token: %s", err.Error()))
-	}
-
-	refresh_token, refreshPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.RefreshTokenDuration)
-	if err != nil {
-		return nil, response.NewError(500, fmt.Sprintf("could not generate refresh token: %s", err.Error()))
-	}
-
-	session, err := a.sessionRepo.Create(&domain.Session{
-		ID:           refreshPayload.ID,
-		Username:     user.Username,
-		RefreshToken: refresh_token,
-		UserAgent:    ctx.Request.UserAgent(),
-		ClientIp:     ctx.ClientIP(),
-		IsBlocked:    false,
-		ExpiresAt:    refreshPayload.ExpiresAt,
-	})
-
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
-	}
-
-	return &dto.LoginUserResponse{
-		SessionID:             session.ID,
-		AccessToken:           accessToken,
-		AccessTokenExpriresAt: accessPayload.ExpiresAt,
-		RefreshToken:          refresh_token,
-		RefreshTokenExpiresAt: refreshPayload.ExpiresAt,
-		User:                  user,
-	}, nil
+	return a.issueSessionAndTokens(ctx, user)
 }
 
 // Register implements AuthenticationService.
@@ -205,6 +179,44 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) (*
 	}
 
 	return createdUser, nil
+}
+
+func (a *authService) issueSessionAndTokens(
+	ctx *gin.Context,
+	user *domain.User,
+) (*dto.LoginUserResponse, *response.Error) {
+
+	// Generate token
+	accessToken, accessPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.TokenDuration)
+	if err != nil {
+		return nil, response.NewError(500, fmt.Sprintf("could not generate access token: %s", err.Error()))
+	}
+
+	refresh_token, refreshPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.RefreshTokenDuration)
+	if err != nil {
+		return nil, response.NewError(500, fmt.Sprintf("could not generate refresh token: %s", err.Error()))
+	}
+
+	session, err := a.sessionRepo.Create(&domain.Session{
+		ID:           refreshPayload.ID,
+		Username:     user.Username,
+		RefreshToken: refresh_token,
+		UserAgent:    ctx.Request.UserAgent(),
+		ClientIp:     ctx.ClientIP(),
+		ExpiresAt:    refreshPayload.ExpiresAt,
+	})
+	if err != nil {
+		return nil, response.NewError(500, err.Error())
+	}
+
+	return &dto.LoginUserResponse{
+		SessionID:             session.ID,
+		AccessToken:           accessToken,
+		AccessTokenExpriresAt: accessPayload.ExpiresAt,
+		RefreshToken:          refresh_token,
+		RefreshTokenExpiresAt: refreshPayload.ExpiresAt,
+		User:                  user,
+	}, nil
 }
 
 func NewAuthenticationService(
