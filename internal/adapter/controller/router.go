@@ -17,11 +17,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	ROLE_ADMIN = "ADMIN"
-	ROLE_USER  = "USER"
-)
-
 type Router struct {
 	*gin.Engine
 }

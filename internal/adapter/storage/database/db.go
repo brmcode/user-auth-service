@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/pkg/config"
@@ -32,6 +33,18 @@ func New(config *config.DB) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Configure connection pool for better concurrency
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	// Set connection pool settings for optimal concurrent performance
+	sqlDB.SetMaxOpenConns(25)                 // Maximum number of open connections
+	sqlDB.SetMaxIdleConns(10)                 // Maximum number of idle connections
+	sqlDB.SetConnMaxLifetime(5 * time.Minute) // Maximum connection lifetime
+	sqlDB.SetConnMaxIdleTime(1 * time.Minute) // Maximum idle connection time
 
 	return &DB{DB: db}, nil
 }

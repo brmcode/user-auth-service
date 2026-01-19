@@ -19,17 +19,12 @@ import (
 )
 
 func main() {
-	fmt.Println("Hello, World!")
-
 	cfg, err := config.New(".")
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	err = config.InitOAuth(cfg.OAuth)
-	if err != nil {
-		log.Fatalf("failed to initialize OAuth: %v", err)
-	}
+	config.InitOAuth(cfg.OAuth)
 
 	db, err := database.New(cfg.DB)
 	if err != nil {

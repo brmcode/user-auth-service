@@ -56,14 +56,20 @@ func (u *userServ) CreateUser(ctx *gin.Context, req request.CreateUserRequest) (
 		return nil, response.NewError(500, err.Error())
 	}
 
-	err = u.cache.Set(ctx, cacheKey, userSerialized, u.config.Redis.TTL)
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
-	}
+	// Parallel cache operations: set new cache and delete prefix cache concurrently
+	errChan := make(chan error, 2)
+	go func() {
+		errChan <- u.cache.Set(ctx, cacheKey, userSerialized, u.config.Redis.TTL)
+	}()
+	go func() {
+		errChan <- u.cache.DeleteByPrefix(ctx, "users:*")
+	}()
 
-	err = u.cache.DeleteByPrefix(ctx, "users:*")
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
+	// Wait for both operations
+	for i := 0; i < 2; i++ {
+		if err := <-errChan; err != nil {
+			return nil, response.NewError(500, err.Error())
+		}
 	}
 
 	return createdUser, nil
@@ -82,14 +88,20 @@ func (u *userServ) DeleteUser(ctx *gin.Context, username string) *response.Error
 
 	cacheKey := util.GenerateCacheKey("user", user.Username)
 
-	err = u.cache.Delete(ctx, cacheKey)
-	if err != nil {
-		return response.NewError(500, err.Error())
-	}
+	// Parallel cache operations: delete specific key and prefix cache concurrently
+	errChan := make(chan error, 2)
+	go func() {
+		errChan <- u.cache.Delete(ctx, cacheKey)
+	}()
+	go func() {
+		errChan <- u.cache.DeleteByPrefix(ctx, "users:*")
+	}()
 
-	err = u.cache.DeleteByPrefix(ctx, "users:*")
-	if err != nil {
-		return response.NewError(500, err.Error())
+	// Wait for both operations
+	for i := 0; i < 2; i++ {
+		if err := <-errChan; err != nil {
+			return response.NewError(500, err.Error())
+		}
 	}
 
 	err = u.userRepo.Delete(user)
@@ -158,24 +170,26 @@ func (u *userServ) UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) (
 
 	cacheKey := util.GenerateCacheKey("user", updatedUser.Username)
 
-	err = u.cache.Delete(ctx, cacheKey)
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
-	}
-
 	userSerialized, err := util.Serialize(updatedUser)
 	if err != nil {
 		return nil, response.NewError(500, err.Error())
 	}
 
-	err = u.cache.Set(ctx, cacheKey, userSerialized, u.config.Redis.TTL)
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
-	}
+	// Parallel cache operations: set new cache and delete prefix cache concurrently
+	// SET will overwrite existing key, so no need to delete first
+	errChan := make(chan error, 2)
+	go func() {
+		errChan <- u.cache.Set(ctx, cacheKey, userSerialized, u.config.Redis.TTL)
+	}()
+	go func() {
+		errChan <- u.cache.DeleteByPrefix(ctx, "users:*")
+	}()
 
-	err = u.cache.DeleteByPrefix(ctx, "users:*")
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
+	// Wait for both operations
+	for i := 0; i < 2; i++ {
+		if err := <-errChan; err != nil {
+			return nil, response.NewError(500, err.Error())
+		}
 	}
 
 	return updatedUser, nil

@@ -25,7 +25,7 @@ type User struct {
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 	Role              string         `gorm:"type:varchar(10);not null" json:"role"`
 	Session           Session        `gorm:"foreignKey:Username" json:"-"`
-	OauthAccounts     []OauthAccount `gorm:"foreignKey:Username" json:"-"`
+	OauthAccounts     []OauthAccount `gorm:"foreignKey:Username;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
 }
 
 func GetUsername(ctx *gin.Context) string {
@@ -50,4 +50,10 @@ func GetPayload(ctx *gin.Context) *auth.Payload {
 		return nil
 	}
 	return value.(*auth.Payload)
+}
+
+func (u *User) BeforeDelete(tx *gorm.DB) error {
+	return tx.Unscoped().
+		Where("username = ?", u.Username).
+		Delete(&OauthAccount{}).Error
 }

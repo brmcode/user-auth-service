@@ -32,7 +32,59 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 	account, err := a.oauthAccountRepo.GetByProvider(provider, gUser.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// OAuth account doesn't exist, create new user and account
+			// 1. Try to find any user (including soft-deleted) with the same email.
+			existingUser, errUser := a.userRepo.GetByEmailUnscoped(gUser.Email)
+			if errUser == nil {
+				// User exists (maybe soft-deleted) – restore if necessary and link OAuth account.
+				if existingUser.DeletedAt.Valid {
+					existingUser.DeletedAt = gorm.DeletedAt{}
+					if _, err := a.userRepo.Update(existingUser); err != nil {
+						return nil, response.NewError(500, "failed to restore user")
+					}
+				}
+
+				// Ensure there's an OAuth account for this user.
+				_, err := a.oauthAccountRepo.Create(&domain.OauthAccount{
+					ID:             uuid.New(),
+					Username:       existingUser.Username,
+					Provider:       provider,
+					ProviderUserID: gUser.UserID,
+					Email:          gUser.Email,
+				})
+
+				if err != nil {
+					return nil, response.NewError(500, "failed to create oauth account")
+				}
+
+				// Update cache for the restored/existing user.
+				cacheKey := util.GenerateCacheKey("user", existingUser.Username)
+				userSerialized, err := util.Serialize(existingUser)
+				if err != nil {
+					return nil, response.NewError(500, err.Error())
+				}
+
+				errChan := make(chan error, 2)
+				go func() {
+					errChan <- a.cache.Set(ctx, cacheKey, userSerialized, a.config.Redis.TTL)
+				}()
+				go func() {
+					errChan <- a.cache.DeleteByPrefix(ctx, "users:*")
+				}()
+
+				for i := 0; i < 2; i++ {
+					if err := <-errChan; err != nil {
+						return nil, response.NewError(500, err.Error())
+					}
+				}
+
+				return a.issueSessionAndTokens(ctx, existingUser)
+			}
+
+			// 2. User with this email does not exist at all – create new user and OAuth account.
+			if !errors.Is(errUser, gorm.ErrRecordNotFound) {
+				return nil, response.NewError(500, "failed to lookup user by email")
+			}
+
 			user := &domain.User{
 				Username:  util.RandomUsername(),
 				FirstName: gUser.FirstName,
@@ -44,6 +96,26 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 			createdUser, err := a.userRepo.Create(user)
 			if err != nil {
 				return nil, response.NewError(500, "failed to create user")
+			}
+
+			cacheKey := util.GenerateCacheKey("user", createdUser.Username)
+			userSerialized, err := util.Serialize(createdUser)
+			if err != nil {
+				return nil, response.NewError(500, err.Error())
+			}
+
+			errChan := make(chan error, 2)
+			go func() {
+				errChan <- a.cache.Set(ctx, cacheKey, userSerialized, a.config.Redis.TTL)
+			}()
+			go func() {
+				errChan <- a.cache.DeleteByPrefix(ctx, "users:*")
+			}()
+
+			for i := 0; i < 2; i++ {
+				if err := <-errChan; err != nil {
+					return nil, response.NewError(500, err.Error())
+				}
 			}
 
 			_, err = a.oauthAccountRepo.Create(&domain.OauthAccount{
@@ -207,14 +279,20 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) (*
 		return nil, response.NewError(500, err.Error())
 	}
 
-	err = a.cache.Set(ctx, cacheKey, userSerialized, a.config.Redis.TTL)
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
-	}
+	// Parallel cache operations: set new cache and delete prefix cache concurrently
+	errChan := make(chan error, 2)
+	go func() {
+		errChan <- a.cache.Set(ctx, cacheKey, userSerialized, a.config.Redis.TTL)
+	}()
+	go func() {
+		errChan <- a.cache.DeleteByPrefix(ctx, "users:*")
+	}()
 
-	err = a.cache.DeleteByPrefix(ctx, "users:*")
-	if err != nil {
-		return nil, response.NewError(500, err.Error())
+	// Wait for both operations
+	for i := 0; i < 2; i++ {
+		if err := <-errChan; err != nil {
+			return nil, response.NewError(500, err.Error())
+		}
 	}
 
 	return createdUser, nil

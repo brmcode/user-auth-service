@@ -34,6 +34,16 @@ func (u *userRepo) GetByEmailAndRole(email string, role string) (*domain.User, e
 	return &user, nil
 }
 
+// GetByEmailUnscoped implements UserRepository.
+func (u *userRepo) GetByEmailUnscoped(email string) (*domain.User, error) {
+	var user domain.User
+	if err := u.db.Unscoped().First(&user, "email = ?", email).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 // GetByUsername implements UserRepository.
 func (u *userRepo) Get(username string) (*domain.User, error) {
 	var user domain.User
