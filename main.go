@@ -63,7 +63,7 @@ func main() {
 	validator := validator.NewValidator()
 	userCtrl := controller.NewUserController(validator, userServ)
 	authCtrl := controller.NewAuthController(validator, userServ, authServ)
-	oauthCtrl := controller.NewOAuthController(authServ)
+	oauthCtrl := controller.NewOAuthController(validator, authServ)
 
 	middleware.Set(tokenServ, db)
 

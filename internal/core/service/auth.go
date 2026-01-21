@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/markbates/goth"
 	"gorm.io/gorm"
 )
 
@@ -28,12 +27,12 @@ type authService struct {
 }
 
 // OAuthLogin implements port.AuthenticationService.
-func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) (*dto.LoginUserResponse, *response.Error) {
-	account, err := a.oauthAccountRepo.GetByProvider(provider, gUser.UserID)
+func (a *authService) OAuthLogin(ctx *gin.Context, req dto.OAuthRegisterUserRequest) (*dto.LoginUserResponse, *response.Error) {
+	account, err := a.oauthAccountRepo.GetByProvider(req.Provider, req.ProviderUserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 1. Try to find any user (including soft-deleted) with the same email.
-			existingUser, errUser := a.userRepo.GetByEmailUnscoped(gUser.Email)
+			existingUser, errUser := a.userRepo.GetByEmailUnscoped(req.Email)
 			if errUser == nil {
 				// User exists (maybe soft-deleted) – restore if necessary and link OAuth account.
 				if existingUser.DeletedAt.Valid {
@@ -47,9 +46,9 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 				_, err := a.oauthAccountRepo.Create(&domain.OauthAccount{
 					ID:             uuid.New(),
 					Username:       existingUser.Username,
-					Provider:       provider,
-					ProviderUserID: gUser.UserID,
-					Email:          gUser.Email,
+					Provider:       req.Provider,
+					ProviderUserID: req.ProviderUserID,
+					Email:          req.Email,
 				})
 
 				if err != nil {
@@ -87,9 +86,9 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 
 			user := &domain.User{
 				Username:  util.RandomUsername(),
-				FirstName: gUser.FirstName,
-				LastName:  gUser.LastName,
-				Email:     gUser.Email,
+				FirstName: req.FirstName,
+				LastName:  req.LastName,
+				Email:     req.Email,
 				Role:      domain.USER_ROLE,
 			}
 
@@ -121,9 +120,9 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 			_, err = a.oauthAccountRepo.Create(&domain.OauthAccount{
 				ID:             uuid.New(),
 				Username:       createdUser.Username,
-				Provider:       provider,
-				ProviderUserID: gUser.UserID,
-				Email:          gUser.Email,
+				Provider:       req.Provider,
+				ProviderUserID: req.ProviderUserID,
+				Email:          req.Email,
 			})
 			if err != nil {
 				return nil, response.NewError(500, "failed to create oauth account")

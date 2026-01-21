@@ -48,6 +48,7 @@ func NewRouter(
 		{
 			oauth.GET("/:provider", oauthCtrl.Begin)
 			oauth.GET("/:provider/callback", oauthCtrl.Callback)
+			oauth.POST("/login", oauthCtrl.OAuthLogin)
 		}
 		user := api.Group("/users")
 		{
