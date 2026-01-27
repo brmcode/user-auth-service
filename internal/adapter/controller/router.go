@@ -44,7 +44,7 @@ func NewRouter(
 			auth.POST("/register", authCtrl.Register)
 			auth.POST("/refresh_token", authCtrl.RefreshToken)
 		}
-		oauth := auth.Group("/oauth")
+		oauth := api.Group("/oauth")
 		{
 			oauth.GET("/:provider", oauthCtrl.Begin)
 			oauth.GET("/:provider/callback", oauthCtrl.Callback)

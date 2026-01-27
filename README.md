@@ -35,7 +35,7 @@ A production-ready, high-performance user authentication and management service 
 - 🛡️ **Role-based access control** (USER/ADMIN roles)
 - 🪪 **Dual token authentication** (PASETO or JWT - configurable)
 - ♻️ **Access & refresh token** system with automatic renewal
-- 🔐 **OAuth authentication** with Google (GitHub support ready)
+- 🔐 **OAuth authentication** with Google
 - 🗂️ **Session management** with Redis caching and database persistence
 - 🏗️ **Clean hexagonal architecture** with clear separation of concerns
 - ✅ **Comprehensive input validation** with custom validation rules
@@ -115,17 +115,16 @@ go.mod, go.sum           # Go modules and dependencies
 ### 🔐 OAuth
 | Method | Endpoint                        | Description                                    |
 |--------|---------------------------------|------------------------------------------------|
-| GET    | `/api/auth/oauth/:provider`     | Initiate OAuth flow (redirects to provider)   |
-| GET    | `/api/auth/oauth/:provider/callback` | OAuth callback (returns tokens)              |
+| GET    | `/api/oauth/:provider`     | Initiate OAuth flow (redirects to provider)   |
+| GET    | `/api/oauth/:provider/callback` | OAuth callback (returns tokens)              |
 
 **Supported Providers:**
 - `google` - Google OAuth 2.0
-- `github` - GitHub OAuth (configuration ready, implementation can be enabled)
 
 **OAuth Flow:**
-1. User visits `/api/auth/oauth/google` to initiate authentication
+1. User visits `/api/oauth/google` to initiate authentication
 2. User is redirected to Google for authentication
-3. Google redirects back to `/api/auth/oauth/google/callback`
+3. Google redirects back to `/api/oauth/google/callback`
 4. Service creates/links user account and returns access/refresh tokens
 
 ### 👤 Users
@@ -201,12 +200,11 @@ The service supports OAuth 2.0 authentication using the [Goth](https://github.co
 
 ### Supported Providers
 - ✅ **Google** - Fully implemented and tested
-- 🔧 **GitHub** - Configuration ready, can be enabled by uncommenting code in `pkg/config/oauth.go`
 
 ### How It Works
-1. **User initiates OAuth:** Visits `/api/auth/oauth/:provider`
-2. **Provider authentication:** Redirected to provider (Google/GitHub) for login
-3. **Callback handling:** Provider redirects to `/api/auth/oauth/:provider/callback`
+1. **User initiates OAuth:** Visits `/api/oauth/:provider`
+2. **Provider authentication:** Redirected to provider (Google) for login
+3. **Callback handling:** Provider redirects to `/api/oauth/:provider/callback`
 4. **Account linking:**
    - If OAuth account exists → Links to existing user and issues tokens
    - If new OAuth account → Creates new user account and OAuthAccount record
@@ -260,14 +258,7 @@ REDIS_TTL=30m                    # Cache TTL
 # =========================
 OAUTH_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 OAUTH_GOOGLE_CLIENT_SECRET=your-client-secret
-OAUTH_GOOGLE_CALLBACK_URL=http://localhost:8080/api/auth/oauth/google/callback
-
-# =========================
-# OAUTH - GITHUB
-# =========================
-OAUTH_GITHUB_CLIENT_ID=your-github-client-id
-OAUTH_GITHUB_CLIENT_SECRET=your-github-client-secret
-OAUTH_GITHUB_CALLBACK_URL=http://localhost:8080/api/auth/oauth/github/callback
+OAUTH_GOOGLE_CALLBACK_URL=http://localhost:8080/api/oauth/google/callback
 ```
 
 ### Setting Up OAuth Providers
@@ -277,15 +268,8 @@ OAUTH_GITHUB_CALLBACK_URL=http://localhost:8080/api/auth/oauth/github/callback
 2. Create a new project or select existing one
 3. Enable Google+ API
 4. Create OAuth 2.0 credentials
-5. Add authorized redirect URI: `http://localhost:8080/api/auth/oauth/google/callback`
+5. Add authorized redirect URI: `http://localhost:8080/api/oauth/google/callback`
 6. Copy Client ID and Client Secret to `app.env`
-
-**GitHub OAuth Setup:**
-1. Go to GitHub Settings → Developer settings → OAuth Apps
-2. Create a new OAuth App
-3. Set Authorization callback URL: `http://localhost:8080/api/auth/oauth/github/callback`
-4. Copy Client ID and Client Secret to `app.env`
-5. Uncomment GitHub provider code in `pkg/config/oauth.go`
 
 ---
 
@@ -360,7 +344,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 ```
 
 **OAuth Login:**
-1. Open browser: `http://localhost:8080/api/auth/oauth/google`
+1. Open browser: `http://localhost:8080/api/oauth/google`
 2. Complete Google authentication
 3. Redirected back with tokens in response
 

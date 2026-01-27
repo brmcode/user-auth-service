@@ -16,16 +16,21 @@ import (
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/internal/core/service"
 	"github.com/brmcode/user-auth-service/pkg/config"
+	"github.com/brmcode/user-auth-service/pkg/oauth"
 )
 
-func main() {
-	cfg, err := config.New(".")
+var cfg *config.Configuration
+
+func init() {
+	var err error
+	cfg, err = config.New(".")
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
+	oauth.Init(cfg.OAuth)
+}
 
-	config.InitOAuth(cfg.OAuth)
-
+func main() {
 	db, err := database.New(cfg.DB)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)

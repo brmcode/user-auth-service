@@ -17,7 +17,7 @@ func NewOAuthController(authService port.AuthenticationService) *OAuthController
 	return &OAuthController{authService: authService}
 }
 
-func (c *OAuthController) Begin(ctx *gin.Context) {
+func (o *OAuthController) Begin(ctx *gin.Context) {
 	provider := ctx.Param("provider")
 	if provider == "" {
 		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "provider parameter is required"))
@@ -28,7 +28,7 @@ func (c *OAuthController) Begin(ctx *gin.Context) {
 	gothic.BeginAuthHandler(ctx.Writer, ctx.Request)
 }
 
-func (c *OAuthController) Callback(ctx *gin.Context) {
+func (o *OAuthController) Callback(ctx *gin.Context) {
 	provider := ctx.Param("provider")
 	if provider == "" {
 		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "provider parameter is required"))
@@ -44,7 +44,7 @@ func (c *OAuthController) Callback(ctx *gin.Context) {
 		return
 	}
 
-	res, resErr := c.authService.OAuthLogin(ctx, provider, user)
+	res, resErr := o.authService.OAuthLogin(ctx, provider, user)
 	if resErr != nil {
 		ctx.JSON(resErr.Code, resErr)
 		return

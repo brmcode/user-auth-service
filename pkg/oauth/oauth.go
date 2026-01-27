@@ -1,12 +1,12 @@
-package config
+package oauth
 
 import (
+	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/markbates/goth"
-	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
 )
 
-func InitOAuth(config *OAuth) {
+func Init(config *config.OAuth) {
 	var providers []goth.Provider
 
 	if config.GoogleClientID != "" && config.GoogleClientSecret != "" {
@@ -18,17 +18,7 @@ func InitOAuth(config *OAuth) {
 		))
 	}
 
-	if config.GithubClientID != "" && config.GithubClientSecret != "" {
-		providers = append(providers, github.New(
-			config.GithubClientID,
-			config.GithubClientSecret,
-			config.GithubCallbackURL,
-			"user:email",
-		))
-	}
-
 	if len(providers) > 0 {
 		goth.UseProviders(providers...)
 	}
-
 }
