@@ -2,21 +2,20 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"net"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/auth/jwt"
-	"github.com/brmcode/user-auth-service/internal/adapter/auth/paseto"
 	"github.com/brmcode/user-auth-service/internal/adapter/controller"
+	"github.com/brmcode/user-auth-service/internal/adapter/grpc"
 	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database/repository"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/redis"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
-	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/internal/core/service"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/brmcode/user-auth-service/pkg/oauth"
+	"github.com/brmcode/user-auth-service/pkg/util"
 )
 
 var cfg *config.Configuration
@@ -59,7 +58,7 @@ func main() {
 	if cfg.Auth.TokenType == "paseto" {
 
 	}
-	tokenServ, err := newTokenService(cfg.Auth)
+	tokenServ, err := util.NewTokenService(cfg.Auth)
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
@@ -71,6 +70,17 @@ func main() {
 	oauthCtrl := controller.NewOAuthController(authServ)
 
 	middleware.Set(tokenServ, db)
+
+	userServer := grpc.NewUserServer(userRepo, cache, cfg)
+	authServer := grpc.NewAuthServer(cfg, userRepo, sessionRepo, tokenServ)
+
+	listener, err := net.Listen("tcp", ":"+cfg.Grpc.Port)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	grpcServer, err := grpc.NewServer(cfg, userServer, authServer)
+	go grpcServer.Serve(listener)
 
 	router, err := controller.NewRouter(
 		cfg,
@@ -84,15 +94,4 @@ func main() {
 	}
 
 	router.Serve(":" + cfg.HTTP.Port)
-}
-
-func newTokenService(config *config.Auth) (port.TokenService, error) {
-	switch config.TokenType {
-	case "paseto", "PASETO":
-		return paseto.New(config.SecretKey)
-	case "jwt", "JWT":
-		return jwt.New(config.SecretKey)
-	default:
-		return nil, fmt.Errorf("unsupported token type "+"\"%s\". Only \"paseto\" and \"jwt\" are supported", config.TokenType)
-	}
 }

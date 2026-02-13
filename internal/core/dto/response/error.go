@@ -1,13 +1,13 @@
 package response
 
 type Error struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	StatusCode int    `json:"status_code"`
+	Message    string `json:"message"`
 }
 
-func NewError(code int, message string) *Error {
+func NewError(statusCode int, message string) *Error {
 	return &Error{
-		Code:    code,
-		Message: message,
+		StatusCode: statusCode,
+		Message:    message,
 	}
 }

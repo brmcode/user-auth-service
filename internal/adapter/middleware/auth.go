@@ -9,6 +9,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 const (
@@ -47,6 +48,10 @@ func Authorized(role ...string) gin.HandlerFunc {
 
 		payload, err := tokenService.VerifyToken(tokenString)
 		if err != nil {
+			if err == jwt.ErrTokenExpired {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, err.Error()))
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, err.Error()))
 			return
 		}

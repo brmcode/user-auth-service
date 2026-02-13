@@ -14,14 +14,16 @@ require (
 	github.com/o1egl/paseto v1.0.0
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/spf13/viper v1.20.1
-	golang.org/x/crypto v0.39.0
+	golang.org/x/crypto v0.44.0
 	golang.org/x/time v0.12.0
+	google.golang.org/grpc v1.78.0
+	google.golang.org/protobuf v1.36.10
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.30.1
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.6.0 // indirect
+	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/aead/poly1305 v0.0.0-20180717145839-3fee0db0b635 // indirect
 	github.com/bytedance/sonic v1.13.3 // indirect
@@ -65,11 +67,11 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/arch v0.18.0 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sync v0.15.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.26.0 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/oauth2 v0.32.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
