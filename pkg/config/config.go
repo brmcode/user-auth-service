@@ -13,6 +13,7 @@ type (
 		Auth  *Auth
 		Redis *Redis
 		OAuth *OAuth
+		Grpc  *Grpc
 	}
 
 	DB struct {
@@ -40,10 +41,15 @@ type (
 		Password string
 		TTL      time.Duration
 	}
+
 	OAuth struct {
 		GoogleClientID     string
 		GoogleClientSecret string
 		GoogleCallbackURL  string
+	}
+
+	Grpc struct {
+		Port string
 	}
 )
 
@@ -85,6 +91,10 @@ func New(path string) (config *Configuration, err error) {
 		GoogleCallbackURL:  viper.GetString("OAUTH_GOOGLE_CALLBACK_URL"),
 	}
 
-	config = &Configuration{DB: db, HTTP: http, Auth: auth, Redis: redis, OAuth: oAuth}
+	gRPC := &Grpc{
+		Port: viper.GetString("GRPC_PORT"),
+	}
+
+	config = &Configuration{DB: db, HTTP: http, Auth: auth, Redis: redis, OAuth: oAuth, Grpc: gRPC}
 	return
 }

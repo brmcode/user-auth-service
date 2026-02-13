@@ -30,7 +30,7 @@ func (u *UserController) GetUser(ctx *gin.Context) {
 
 	res, errRes := u.userService.GetUser(ctx, username)
 	if errRes != nil {
-		ctx.JSON(errRes.Code, errRes)
+		ctx.JSON(errRes.StatusCode, errRes)
 		return
 	}
 
@@ -51,7 +51,7 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 
 	user, resErr := u.userService.CreateUser(ctx, req)
 	if resErr != nil {
-		ctx.JSON(resErr.Code, resErr)
+		ctx.JSON(resErr.StatusCode, resErr)
 		return
 	}
 
@@ -94,7 +94,7 @@ func (u *UserController) UpdateUser(ctx *gin.Context) {
 
 	user, resErr := u.userService.UpdateUser(ctx, req)
 	if resErr != nil {
-		ctx.JSON(resErr.Code, resErr)
+		ctx.JSON(resErr.StatusCode, resErr)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (u *UserController) DeleteUser(ctx *gin.Context) {
 	}
 
 	if resErr := u.userService.DeleteUser(ctx, username); resErr != nil {
-		ctx.JSON(resErr.Code, resErr)
+		ctx.JSON(resErr.StatusCode, resErr)
 		return
 	}
 

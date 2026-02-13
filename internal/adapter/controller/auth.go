@@ -35,7 +35,7 @@ func (a *AuthController) Login(ctx *gin.Context) {
 
 	res, resErr := a.authService.Login(ctx, input)
 	if resErr != nil {
-		ctx.JSON(resErr.Code, resErr)
+		ctx.JSON(resErr.StatusCode, resErr)
 		return
 	}
 
@@ -52,7 +52,7 @@ func (a *AuthController) RefreshToken(ctx *gin.Context) {
 
 	res, resErr := a.authService.ReNewAccessToken(ctx, input)
 	if resErr != nil {
-		ctx.JSON(resErr.Code, resErr)
+		ctx.JSON(resErr.StatusCode, resErr)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (a *AuthController) Register(ctx *gin.Context) {
 
 	user, resErr := a.authService.Register(ctx, req)
 	if resErr != nil {
-		ctx.JSON(resErr.Code, resErr)
+		ctx.JSON(resErr.StatusCode, resErr)
 		return
 	}
 

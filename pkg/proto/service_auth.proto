@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package pb;
+
+import "rpc_login_user.proto";
+
+option go_package = "github.com/brmcode/user-auth-service/pkg/pb";
+
+service AuthService {
+    rpc LoginUser(LoginUserRequest) returns (LoginUserResponse){}
+}

@@ -46,7 +46,7 @@ func (o *OAuthController) Callback(ctx *gin.Context) {
 
 	res, resErr := o.authService.OAuthLogin(ctx, provider, user)
 	if resErr != nil {
-		ctx.JSON(resErr.Code, resErr)
+		ctx.JSON(resErr.StatusCode, resErr)
 		return
 	}
 
