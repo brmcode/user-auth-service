@@ -41,6 +41,7 @@ A production-ready, high-performance user authentication and management service 
 - ✅ **Comprehensive input validation** with custom validation rules
 - 🚦 **Rate limiting** middleware (40 req/sec) for API protection
 - 🐘 **PostgreSQL** integration with GORM ORM
+- 📡 **gRPC API** for high-performance service-to-service communication
 - 🔄 **Redis caching** for session and performance optimization
 - 🐳 **Dockerized** with multi-service setup (PostgreSQL, Redis, RedisInsight)
 - ⚙️ **Environment-based configuration** with Viper
@@ -62,6 +63,7 @@ internal/                  # Application-specific code
 │   │   ├── oauth.go     # OAuth authentication handlers
 │   │   ├── router.go    # Route definitions
 │   │   └── user.go      # User management endpoints
+│   ├── grpc/             # gRPC servers (auth, user, etc.)
 │   ├── storage/          # Data storage implementations
 │   │   ├── database/     # PostgreSQL with GORM
 │   │   │   └── repository/ # Data access layer
@@ -165,7 +167,7 @@ go.mod, go.sum           # Go modules and dependencies
 - `Username` (varchar(60), foreign key to User)
 - `RefreshToken` (text, indexed)
 - `UserAgent` (varchar(255), not null)
-- `ClientIp` (varchar(60), not null)
+- `ClientIP` (varchar(60), not null)
 - `IsBlocked` (boolean, default false)
 - `ExpiresAt`, `CreatedAt` (timestamptz)
 
@@ -237,6 +239,11 @@ DB_NAME=auth_db
 # HTTP
 # =========================
 HTTP_PORT=8080
+
+# =========================
+# GRPC
+# =========================
+GRPC_PORT=50051
 
 # =========================
 # JWT / AUTH
@@ -314,19 +321,31 @@ OAUTH_GOOGLE_CALLBACK_URL=http://localhost:8080/api/oauth/google/callback
 
 5. **Run the application:**
    ```sh
+   # HTTP server (REST APIs)
+   make http
+
+   # gRPC server
+   make grpc
+
+   # (legacy) HTTP entrypoint
    make run-app
    ```
 
-6. **API available at:** `http://localhost:8080/api/`
+6. **APIs available at:**
+   - HTTP: `http://localhost:8080/api/`
+   - gRPC: `localhost:50051` (configurable via `GRPC_PORT`)
 
 ### 🛠️ Makefile Commands
 | Command           | Description                        |
 |-------------------|------------------------------------|
 | `make compose-up` | Start all services (PostgreSQL, Redis, RedisInsight) |
 | `make compose-down`| Stop all services                 |
-| `make run-app`    | Run the Go application             |
+| `make run-app`    | Run the HTTP application (legacy entrypoint) |
 | `make createdb`   | Create the database                |
 | `make dropdb`     | Drop the database                  |
+| `make proto`      | Generate gRPC protobuf files       |
+| `make http`       | Run the HTTP server                |
+| `make grpc`       | Run the gRPC server                |
 
 ### 🧪 Testing the API
 
@@ -370,6 +389,11 @@ curl -X POST http://localhost:8080/api/auth/login \
 ```
 user-auth-service/
 ├── main.go                          # Application entry point
+├── cmd/                             # CLI entrypoints
+│   ├── http/                        # HTTP server entrypoint
+│   │   └── main.go
+│   └── grpc/                        # gRPC server entrypoint
+│       └── main.go
 ├── internal/
 │   ├── adapter/                     # External adapters
 │   │   ├── controller/              # HTTP controllers (Gin)
@@ -377,6 +401,10 @@ user-auth-service/
 │   │   │   ├── oauth.go             # OAuth authentication handlers
 │   │   │   ├── router.go            # Route definitions
 │   │   │   └── user.go              # User management endpoints
+│   │   ├── grpc/                    # gRPC servers
+│   │   │   ├── server.go            # gRPC server setup
+│   │   │   ├── auth.go              # gRPC auth service
+│   │   │   └── user.go              # gRPC user service
 │   │   ├── storage/                 # Data storage layer
 │   │   │   ├── database/            # PostgreSQL with GORM
 │   │   │   │   ├── db.go            # Database connection & migration
@@ -424,6 +452,8 @@ user-auth-service/
 │   ├── config/                      # Configuration management
 │   │   ├── config.go                # Viper-based config
 │   │   └── oauth.go                 # OAuth provider initialization
+│   ├── pb/                          # Generated gRPC/protobuf code
+│   ├── proto/                       # Protobuf service definitions
 │   └── util/                        # Utility functions
 │       ├── cache.go                 # Cache utilities
 │       ├── password.go              # Password hashing utilities
