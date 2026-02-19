@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/auth"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/dto/response"
@@ -66,7 +67,7 @@ func Authorized(role ...string) gin.HandlerFunc {
 			return
 		}
 
-		c.Set("authPayloadKey", payload)
+		auth.SetPayload(c, payload)
 		c.Next()
 	}
 }

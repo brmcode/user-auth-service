@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/auth"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/dto/request"
@@ -23,7 +24,7 @@ func NewUserController(validator *validator.Validator, userService port.UserServ
 
 func (u *UserController) GetUser(ctx *gin.Context) {
 	username := ctx.Param("username")
-	if domain.GetUsername(ctx) != username {
+	if auth.GetUsername(ctx) != username {
 		ctx.JSON(http.StatusForbidden, response.NewError(403, "you are not authorized to access this resource"))
 		return
 	}
@@ -60,7 +61,7 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 
 func (u *UserController) UpdateUser(ctx *gin.Context) {
 	username := ctx.Param("username")
-	payload := domain.GetPayload(ctx)
+	payload := auth.GetPayload(ctx)
 	if payload == nil {
 		ctx.JSON(http.StatusInternalServerError, response.NewError(500, "payload not found"))
 		return
@@ -104,7 +105,7 @@ func (u *UserController) UpdateUser(ctx *gin.Context) {
 func (u *UserController) DeleteUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 
-	if domain.GetUsername(ctx) != username {
+	if auth.GetUsername(ctx) != username {
 		ctx.JSON(http.StatusForbidden, response.NewError(403, "you are not allowed to delete this user"))
 		return
 	}

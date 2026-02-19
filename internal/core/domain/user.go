@@ -3,15 +3,12 @@ package domain
 import (
 	"time"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/auth"
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 const (
-	DEFAULT_USER = "user"
-	USER_ROLE    = "USER"
-	ADMIN_ROLE   = "ADMIN"
+	USER_ROLE  = "USER"
+	ADMIN_ROLE = "ADMIN"
 )
 
 type User struct {
@@ -26,30 +23,6 @@ type User struct {
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 	Session           Session        `gorm:"foreignKey:Username" json:"-"`
 	OauthAccounts     []OauthAccount `gorm:"foreignKey:Username;constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
-}
-
-func GetUsername(ctx *gin.Context) string {
-	value, exists := ctx.Get("authPayloadKey")
-	if !exists {
-		return DEFAULT_USER
-	}
-	return value.(*auth.Payload).Username
-}
-
-func GetRole(ctx *gin.Context) string {
-	value, exists := ctx.Get("authPayloadKey")
-	if !exists {
-		return DEFAULT_USER
-	}
-	return value.(*auth.Payload).Role
-}
-
-func GetPayload(ctx *gin.Context) *auth.Payload {
-	value, exists := ctx.Get("authPayloadKey")
-	if !exists {
-		return nil
-	}
-	return value.(*auth.Payload)
 }
 
 func (u *User) BeforeDelete(tx *gorm.DB) error {
