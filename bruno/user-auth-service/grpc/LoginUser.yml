@@ -1,0 +1,11 @@
+info:
+  name: LoginUser
+  type: grpc
+  seq: 2
+
+grpc:
+  url: localhost:50051
+  method: /pb.AuthService/LoginUser
+  methodType: unary
+  message: "{}"
+  auth: inherit
