@@ -7,5 +7,10 @@ grpc:
   url: localhost:50051
   method: /pb.AuthService/LoginUser
   methodType: unary
-  message: "{}"
+  message: |-
+    {
+        "email": "Carolyn88@yahoo.com",
+        "password": "123456",
+        "role": "USER"
+    }
   auth: inherit
