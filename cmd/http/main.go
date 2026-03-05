@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/controller"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler"
 	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/app"
@@ -24,11 +24,11 @@ func main() {
 	middleware.Set(c.TokenService, c.DB)
 
 	validator := validator.NewValidator()
-	userCtrl := controller.NewUserController(validator, c.UserService)
-	authCtrl := controller.NewAuthController(validator, c.UserService, c.AuthService)
-	oauthCtrl := controller.NewOAuthController(c.AuthService)
+	userCtrl := handler.NewUserHandler(validator, c.UserService)
+	authCtrl := handler.NewAuthHandler(validator, c.UserService, c.AuthService)
+	oauthCtrl := handler.NewOAuthHandler(c.AuthService)
 
-	router, err := controller.NewRouter(
+	router, err := handler.NewRouter(
 		c.Cfg,
 		c.TokenService,
 		userCtrl,

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )

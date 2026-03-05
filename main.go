@@ -5,8 +5,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/controller"
 	"github.com/brmcode/user-auth-service/internal/adapter/grpc"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler"
 	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database/repository"
@@ -65,9 +65,9 @@ func main() {
 	authServ := service.NewAuthenticationService(cfg, userRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
 
 	validator := validator.NewValidator()
-	userCtrl := controller.NewUserController(validator, userServ)
-	authCtrl := controller.NewAuthController(validator, userServ, authServ)
-	oauthCtrl := controller.NewOAuthController(authServ)
+	userCtrl := handler.NewUserHandler(validator, userServ)
+	authCtrl := handler.NewAuthHandler(validator, userServ, authServ)
+	oauthCtrl := handler.NewOAuthHandler(authServ)
 
 	middleware.Set(tokenServ, db)
 
@@ -82,7 +82,7 @@ func main() {
 	grpcServer, err := grpc.NewServer(cfg, userServer, authServer)
 	go grpcServer.Serve(listener)
 
-	router, err := controller.NewRouter(
+	router, err := handler.NewRouter(
 		cfg,
 		tokenServ,
 		userCtrl,

@@ -1,4 +1,4 @@
-package controller
+package handler
 
 import (
 	"context"
@@ -24,9 +24,9 @@ type Router struct {
 func NewRouter(
 	config *config.Configuration,
 	tokenServ port.TokenService,
-	userCtrl *UserController,
-	authCtrl *AuthController,
-	oauthCtrl *OAuthController,
+	userHandler *UserHandler,
+	authHandler *AuthHandler,
+	oauthHandler *OAuthHandler,
 
 ) (*Router, error) {
 	router := gin.Default()
@@ -40,21 +40,21 @@ func NewRouter(
 	{
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", authCtrl.Login)
-			auth.POST("/register", authCtrl.Register)
-			auth.POST("/refresh_token", authCtrl.RefreshToken)
+			auth.POST("/login", authHandler.Login)
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/refresh_token", authHandler.RefreshToken)
 		}
 		oauth := api.Group("/oauth")
 		{
-			oauth.GET("/:provider", oauthCtrl.Begin)
-			oauth.GET("/:provider/callback", oauthCtrl.Callback)
+			oauth.GET("/:provider", oauthHandler.Begin)
+			oauth.GET("/:provider/callback", oauthHandler.Callback)
 		}
 		user := api.Group("/users")
 		{
-			user.POST("", mw.Authorized(domain.ADMIN_ROLE), userCtrl.CreateUser)
-			user.GET("/:username", mw.Authorized(), userCtrl.GetUser)
-			user.PUT("/:username", mw.Authorized(), userCtrl.UpdateUser)
-			user.DELETE("/:username", mw.Authorized(), userCtrl.DeleteUser)
+			user.POST("", mw.Authorized(domain.ADMIN_ROLE), userHandler.CreateUser)
+			user.GET("/:username", mw.Authorized(), userHandler.GetUser)
+			user.PUT("/:username", mw.Authorized(), userHandler.UpdateUser)
+			user.DELETE("/:username", mw.Authorized(), userHandler.DeleteUser)
 		}
 	}
 

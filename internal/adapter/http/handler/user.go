@@ -1,44 +1,45 @@
-package controller
+package handler
 
 import (
 	"net/http"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/auth"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/request"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
-	"github.com/brmcode/user-auth-service/internal/core/dto/request"
-	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+
 	"github.com/brmcode/user-auth-service/internal/core/port"
 
 	"github.com/gin-gonic/gin"
 )
 
-type UserController struct {
+type UserHandler struct {
 	validator   *validator.Validator
 	userService port.UserService
 }
 
-func NewUserController(validator *validator.Validator, userService port.UserService) *UserController {
-	return &UserController{validator: validator, userService: userService}
+func NewUserHandler(validator *validator.Validator, userService port.UserService) *UserHandler {
+	return &UserHandler{validator: validator, userService: userService}
 }
 
-func (u *UserController) GetUser(ctx *gin.Context) {
+func (u *UserHandler) GetUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 	if auth.GetUsername(ctx) != username {
 		ctx.JSON(http.StatusForbidden, response.NewError(403, "you are not authorized to access this resource"))
 		return
 	}
 
-	res, errRes := u.userService.GetUser(ctx, username)
-	if errRes != nil {
-		ctx.JSON(errRes.StatusCode, errRes)
+	res := u.userService.GetUser(ctx, username)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
 		return
 	}
 
 	ctx.JSON(http.StatusOK, res)
 }
 
-func (u *UserController) CreateUser(ctx *gin.Context) {
+func (u *UserHandler) CreateUser(ctx *gin.Context) {
 	var req request.CreateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
@@ -50,16 +51,16 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	user, resErr := u.userService.CreateUser(ctx, req)
-	if resErr != nil {
-		ctx.JSON(resErr.StatusCode, resErr)
+	res := u.userService.CreateUser(ctx, req)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, user)
+	ctx.JSON(http.StatusCreated, res)
 }
 
-func (u *UserController) UpdateUser(ctx *gin.Context) {
+func (u *UserHandler) UpdateUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 	payload := auth.GetPayload(ctx)
 	if payload == nil {
@@ -93,16 +94,16 @@ func (u *UserController) UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	user, resErr := u.userService.UpdateUser(ctx, req)
-	if resErr != nil {
-		ctx.JSON(resErr.StatusCode, resErr)
+	res := u.userService.UpdateUser(ctx, req)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, user)
+	ctx.JSON(http.StatusOK, res)
 }
 
-func (u *UserController) DeleteUser(ctx *gin.Context) {
+func (u *UserHandler) DeleteUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 
 	if auth.GetUsername(ctx) != username {
@@ -110,8 +111,9 @@ func (u *UserController) DeleteUser(ctx *gin.Context) {
 		return
 	}
 
-	if resErr := u.userService.DeleteUser(ctx, username); resErr != nil {
-		ctx.JSON(resErr.StatusCode, resErr)
+	res := u.userService.DeleteUser(ctx, username)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
 		return
 	}
 

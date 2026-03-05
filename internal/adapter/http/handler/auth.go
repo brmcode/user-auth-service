@@ -1,26 +1,27 @@
-package controller
+package handler
 
 import (
 	"net/http"
 
+	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
-	dto "github.com/brmcode/user-auth-service/internal/core/dto/common"
-	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
 )
 
-type AuthController struct {
+type AuthHandler struct {
 	validator   *validator.Validator
 	userService port.UserService
 	authService port.AuthenticationService
 }
 
-func NewAuthController(validator *validator.Validator, userService port.UserService, authService port.AuthenticationService) *AuthController {
-	return &AuthController{validator: validator, userService: userService, authService: authService}
+func NewAuthHandler(validator *validator.Validator, userService port.UserService, authService port.AuthenticationService) *AuthHandler {
+	return &AuthHandler{validator: validator, userService: userService, authService: authService}
 }
 
-func (a *AuthController) Login(ctx *gin.Context) {
+func (a *AuthHandler) Login(ctx *gin.Context) {
 	var input dto.LoginModel
 
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -33,16 +34,16 @@ func (a *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	res, resErr := a.authService.Login(ctx, input)
-	if resErr != nil {
-		ctx.JSON(resErr.StatusCode, resErr)
+	res := a.authService.Login(ctx, input)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
 		return
 	}
 
 	ctx.JSON(http.StatusOK, res)
 }
 
-func (a *AuthController) RefreshToken(ctx *gin.Context) {
+func (a *AuthHandler) RefreshToken(ctx *gin.Context) {
 	var input dto.ReNewAccessTokenRequest
 
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -50,16 +51,16 @@ func (a *AuthController) RefreshToken(ctx *gin.Context) {
 		return
 	}
 
-	res, resErr := a.authService.ReNewAccessToken(ctx, input)
-	if resErr != nil {
-		ctx.JSON(resErr.StatusCode, resErr)
+	res := a.authService.ReNewAccessToken(ctx, input)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
 		return
 	}
 
 	ctx.JSON(http.StatusOK, res)
 }
 
-func (a *AuthController) Register(ctx *gin.Context) {
+func (a *AuthHandler) Register(ctx *gin.Context) {
 	var req dto.RegisterUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -72,9 +73,9 @@ func (a *AuthController) Register(ctx *gin.Context) {
 		return
 	}
 
-	user, resErr := a.authService.Register(ctx, req)
-	if resErr != nil {
-		ctx.JSON(resErr.StatusCode, resErr)
+	user := a.authService.Register(ctx, req)
+	if !user.Success {
+		ctx.JSON(user.StatusCode, user)
 		return
 	}
 

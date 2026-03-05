@@ -6,8 +6,9 @@ import (
 	"github.com/brmcode/user-auth-service/internal/adapter/auth"
 	"github.com/brmcode/user-auth-service/internal/adapter/auth/jwt"
 	"github.com/brmcode/user-auth-service/internal/adapter/auth/paseto"
+	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
-	dto "github.com/brmcode/user-auth-service/internal/core/dto/common"
+
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/gin-gonic/gin"

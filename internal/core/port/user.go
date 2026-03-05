@@ -1,9 +1,9 @@
 package port
 
 import (
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/request"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
-	"github.com/brmcode/user-auth-service/internal/core/dto/request"
-	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,8 +17,8 @@ type UserRepository interface {
 }
 
 type UserService interface {
-	CreateUser(ctx *gin.Context, req request.CreateUserRequest) (*domain.User, *response.Error)
-	GetUser(ctx *gin.Context, username string) (*domain.User, *response.Error)
-	UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) (*domain.User, *response.Error)
-	DeleteUser(ctx *gin.Context, username string) *response.Error
+	CreateUser(ctx *gin.Context, req request.CreateUserRequest) *response.User
+	GetUser(ctx *gin.Context, username string) *response.User
+	UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) *response.User
+	DeleteUser(ctx *gin.Context, username string) *response.User
 }

@@ -1,23 +1,23 @@
-package controller
+package handler
 
 import (
 	"net/http"
 
-	"github.com/brmcode/user-auth-service/internal/core/dto/response"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
 )
 
-type OAuthController struct {
+type OAuthHandler struct {
 	authService port.AuthenticationService
 }
 
-func NewOAuthController(authService port.AuthenticationService) *OAuthController {
-	return &OAuthController{authService: authService}
+func NewOAuthHandler(authService port.AuthenticationService) *OAuthHandler {
+	return &OAuthHandler{authService: authService}
 }
 
-func (o *OAuthController) Begin(ctx *gin.Context) {
+func (o *OAuthHandler) Begin(ctx *gin.Context) {
 	provider := ctx.Param("provider")
 	if provider == "" {
 		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "provider parameter is required"))
@@ -28,7 +28,7 @@ func (o *OAuthController) Begin(ctx *gin.Context) {
 	gothic.BeginAuthHandler(ctx.Writer, ctx.Request)
 }
 
-func (o *OAuthController) Callback(ctx *gin.Context) {
+func (o *OAuthHandler) Callback(ctx *gin.Context) {
 	provider := ctx.Param("provider")
 	if provider == "" {
 		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "provider parameter is required"))
@@ -44,9 +44,9 @@ func (o *OAuthController) Callback(ctx *gin.Context) {
 		return
 	}
 
-	res, resErr := o.authService.OAuthLogin(ctx, provider, user)
-	if resErr != nil {
-		ctx.JSON(resErr.StatusCode, resErr)
+	res := o.authService.OAuthLogin(ctx, provider, user)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
 		return
 	}
 

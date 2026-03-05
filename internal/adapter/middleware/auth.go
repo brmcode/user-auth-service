@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/auth"
+	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
-	"github.com/brmcode/user-auth-service/internal/core/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
