@@ -125,7 +125,7 @@ func (u *userServ) GetUser(ctx *gin.Context, username string) *response.User {
 			return response.NewUser(false, http.StatusInternalServerError, "failed to deserialize user", nil, &[]string{err.Error()})
 		}
 		log.Println("cache hit:", cacheKey)
-		return &response.User{Success: true, StatusCode: http.StatusOK, Message: "user fetched successfully", Data: *user}
+		return &response.User{Success: true, StatusCode: http.StatusOK, Message: "user fetched successfully", Data: user}
 	}
 
 	user, err = u.userRepo.Get(username)
