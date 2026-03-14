@@ -18,6 +18,13 @@ type RefreshToken struct {
 	Errors     []string                      `json:"errors,omitempty"`
 }
 
+type Logout struct {
+	Success    bool      `json:"success"`
+	StatusCode int       `json:"status_code"`
+	Message    string    `json:"message"`
+	Errors     []string  `json:"errors,omitempty"`
+}
+
 func NewLogin(success bool, statusCode int, message string, data *dto.LoginUserResponse, errors *[]string) *Login {
 	if success {
 		return &Login{Success: true, StatusCode: statusCode, Message: message, Data: data}
@@ -38,4 +45,15 @@ func NewRefreshToken(success bool, statusCode int, message string, data *dto.ReN
 		errs = *errors
 	}
 	return &RefreshToken{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
+}
+
+func NewLogout(success bool, statusCode int, message string, errors *[]string) *Logout {
+	if success {
+		return &Logout{Success: true, StatusCode: statusCode, Message: message}
+	}
+	var errs []string
+	if errors != nil {
+		errs = *errors
+	}
+	return &Logout{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
 }

@@ -243,6 +243,31 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 	}, nil)
 }
 
+// Logout implements AuthenticationService.
+func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.Logout {
+	if req.RefreshToken == "" {
+		return response.NewLogout(false, 400, "refresh_token is required", &[]string{"refresh_token is required"})
+	}
+	refreshPayload, err := a.tokenService.VerifyToken(req.RefreshToken)
+	if err != nil {
+		return response.NewLogout(false, 401, err.Error(), &[]string{err.Error()})
+	}
+	session, err := a.sessionRepo.Get(refreshPayload.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return response.NewLogout(false, 404, "session not found", &[]string{err.Error()})
+		}
+		return response.NewLogout(false, 500, err.Error(), &[]string{err.Error()})
+	}
+	if session.IsBlocked {
+		return response.NewLogout(true, 200, "session already invalidated", nil)
+	}
+	if err := a.sessionRepo.BlockSession(session.ID); err != nil {
+		return response.NewLogout(false, 500, err.Error(), &[]string{err.Error()})
+	}
+	return response.NewLogout(true, 200, "logged out successfully", nil)
+}
+
 // Login implements AuthenticationService.
 func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) *response.Login {
 	user, err := a.userRepo.GetByEmailAndRole(cred.Email, cred.Role)

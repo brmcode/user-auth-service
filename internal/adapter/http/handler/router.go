@@ -43,6 +43,7 @@ func NewRouter(
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/refresh_token", authHandler.RefreshToken)
+			auth.POST("/logout", authHandler.Logout)
 		}
 		oauth := api.Group("/oauth")
 		{

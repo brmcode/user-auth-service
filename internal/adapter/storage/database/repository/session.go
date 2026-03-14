@@ -16,6 +16,11 @@ func (s *sessionRepo) BlockAllSessions(username string) error {
 	return s.db.Model(&domain.Session{}).Where("username = ?", username).Update("is_blocked", true).Error
 }
 
+// BlockSession implements port.SessionRepository.
+func (s *sessionRepo) BlockSession(id uuid.UUID) error {
+	return s.db.Model(&domain.Session{}).Where("id = ?", id).Update("is_blocked", true).Error
+}
+
 // GetByToken implements port.SessionRepository.
 func (s *sessionRepo) GetByToken(token string) (*domain.Session, error) {
 	var session domain.Session

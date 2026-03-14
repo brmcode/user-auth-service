@@ -60,6 +60,23 @@ func (a *AuthHandler) RefreshToken(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
+func (a *AuthHandler) Logout(ctx *gin.Context) {
+	var input dto.ReNewAccessTokenRequest
+
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		return
+	}
+
+	res := a.authService.Logout(ctx, input)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, res)
+}
+
 func (a *AuthHandler) Register(ctx *gin.Context) {
 	var req dto.RegisterUserRequest
 
