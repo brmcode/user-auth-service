@@ -94,6 +94,7 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 				FirstName: gUser.FirstName,
 				LastName:  gUser.LastName,
 				Email:     gUser.Email,
+				ImageURL:  gUser.AvatarURL,
 				Role:      domain.USER_ROLE,
 			}
 
@@ -301,6 +302,7 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 		FirstName:      req.FirstName,
 		LastName:       req.LastName,
 		Email:          req.Email,
+		ImageURL:       req.ImageURL,
 		HashedPassword: hashedPassword,
 		Role:           domain.USER_ROLE,
 	}

@@ -13,6 +13,7 @@ http:
         "username": "jpmqwgyi",
         "first_name": "{{$randomFirstName}}",
         "last_name": "{{$randomLastName}}",
+        "image_url":"https://picsum.photos/200",
         "role": "USER"
       }
   auth: inherit

@@ -16,6 +16,7 @@ type User struct {
 	FirstName         string         `gorm:"type:varchar(20);not null" json:"first_name"`
 	LastName          string         `gorm:"type:varchar(20);not null" json:"last_name"`
 	Email             string         `gorm:"type:varchar(100);unique;not null" json:"email"`
+	ImageURL          string         `gorm:"type:text;not null" json:"image_url"`
 	HashedPassword    string         `gorm:"type:varchar(255);not null" json:"-"`
 	Role              string         `gorm:"type:varchar(10);not null" json:"role"`
 	PasswordChangedAt time.Time      `gorm:"type:timestamptz;not null;default:'0001-01-01T00:00:00Z'" json:"password_changed_at"`

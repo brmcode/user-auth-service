@@ -37,6 +37,7 @@ func (u *userServ) CreateUser(ctx *gin.Context, req request.CreateUserRequest) *
 		FirstName:      req.FirstName,
 		LastName:       req.LastName,
 		Email:          req.Email,
+		ImageURL:       req.ImageURL,
 		HashedPassword: hashedPassword,
 		Role:           req.Role,
 	}
@@ -162,6 +163,7 @@ func (u *userServ) UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) *
 
 	user.FirstName = req.FirstName
 	user.LastName = req.LastName
+	user.ImageURL = req.ImageURL
 	user.Role = req.Role
 
 	updatedUser, err := u.userRepo.Update(user)
