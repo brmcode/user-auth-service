@@ -2,7 +2,7 @@ package response
 
 import dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 
-type Login struct {
+type LoginResult struct {
 	Success    bool                   `json:"success"`
 	StatusCode int                    `json:"status_code"`
 	Message    string                 `json:"message"`
@@ -10,7 +10,7 @@ type Login struct {
 	Errors     []string               `json:"errors,omitempty"`
 }
 
-type RefreshToken struct {
+type RefreshTokenResult struct {
 	Success    bool                          `json:"success"`
 	StatusCode int                           `json:"status_code"`
 	Message    string                        `json:"message"`
@@ -18,42 +18,42 @@ type RefreshToken struct {
 	Errors     []string                      `json:"errors,omitempty"`
 }
 
-type Logout struct {
-	Success    bool      `json:"success"`
-	StatusCode int       `json:"status_code"`
-	Message    string    `json:"message"`
-	Errors     []string  `json:"errors,omitempty"`
+type LogoutResult struct {
+	Success    bool     `json:"success"`
+	StatusCode int      `json:"status_code"`
+	Message    string   `json:"message"`
+	Errors     []string `json:"errors,omitempty"`
 }
 
-func NewLogin(success bool, statusCode int, message string, data *dto.LoginUserResponse, errors *[]string) *Login {
+func Login(success bool, statusCode int, message string, data *dto.LoginUserResponse, errors *[]string) *LoginResult {
 	if success {
-		return &Login{Success: true, StatusCode: statusCode, Message: message, Data: data}
+		return &LoginResult{Success: true, StatusCode: statusCode, Message: message, Data: data}
 	}
 	var errs []string
 	if errors != nil {
 		errs = *errors
 	}
-	return &Login{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
+	return &LoginResult{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
 }
 
-func NewRefreshToken(success bool, statusCode int, message string, data *dto.ReNewAccessTokenResponse, errors *[]string) *RefreshToken {
+func RefreshToken(success bool, statusCode int, message string, data *dto.ReNewAccessTokenResponse, errors *[]string) *RefreshTokenResult {
 	if success {
-		return &RefreshToken{Success: true, StatusCode: statusCode, Message: message, Data: data}
+		return &RefreshTokenResult{Success: true, StatusCode: statusCode, Message: message, Data: data}
 	}
 	var errs []string
 	if errors != nil {
 		errs = *errors
 	}
-	return &RefreshToken{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
+	return &RefreshTokenResult{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
 }
 
-func NewLogout(success bool, statusCode int, message string, errors *[]string) *Logout {
+func Logout(success bool, statusCode int, message string, errors *[]string) *LogoutResult {
 	if success {
-		return &Logout{Success: true, StatusCode: statusCode, Message: message}
+		return &LogoutResult{Success: true, StatusCode: statusCode, Message: message}
 	}
 	var errs []string
 	if errors != nil {
 		errs = *errors
 	}
-	return &Logout{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
+	return &LogoutResult{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
 }

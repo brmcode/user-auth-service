@@ -13,11 +13,11 @@ import (
 )
 
 type AuthenticationService interface {
-	Login(ctx *gin.Context, cred dto.LoginModel) *response.Login
+	Login(ctx *gin.Context, cred dto.LoginModel) *response.LoginResult
 	Register(ctx *gin.Context, req dto.RegisterUserRequest) *response.User
-	ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.RefreshToken
-	Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.Logout
-	OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) *response.Login
+	ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.RefreshTokenResult
+	Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.LogoutResult
+	OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) *response.LoginResult
 }
 
 type TokenService interface {
