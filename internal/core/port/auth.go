@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/auth"
+	"github.com/brmcode/user-auth-service/internal/adapter/google"
 	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 
@@ -18,6 +19,7 @@ type AuthenticationService interface {
 	ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.RefreshTokenResult
 	Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.LogoutResult
 	OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) *response.LoginResult
+	GoogleAuthMobile(ctx *gin.Context, payload *google.Payload) *response.LoginResult
 }
 
 type TokenService interface {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/google"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database/repository"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/redis"
@@ -49,6 +50,8 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 	userServ := service.NewUserService(userRepo, cache, cfg)
 	authServ := service.NewAuthenticationService(cfg, userRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
 
+	idTokenVerifier := google.NewIDTokenVerifier(cfg.OAuth.GoogleClientID)
+
 	return &Container{
 		Cfg:              cfg,
 		DB:               db,
@@ -59,5 +62,6 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 		UserService:      userServ,
 		AuthService:      authServ,
 		TokenService:     tokenServ,
+		IDTokenVerifier:  idTokenVerifier,
 	}, nil
 }

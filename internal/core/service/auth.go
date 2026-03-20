@@ -3,8 +3,10 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/google"
 	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
@@ -26,6 +28,65 @@ type authService struct {
 	oauthAccountRepo port.OauthAccountRepository
 	tokenService     port.TokenService
 	cache            port.CacheRepository
+}
+
+// GoogleAuthMobile implements [port.AuthenticationService].
+func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload) *response.LoginResult {
+	account, err := a.oauthAccountRepo.GetByProvider("google", payload.Subject)
+	if err == nil {
+		user, err := a.userRepo.Get(account.Username)
+		if err != nil {
+			return response.Login(false, 500, "failed to get user", nil, &[]string{err.Error()})
+		}
+		return a.loginSuccess(ctx, user)
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return response.Login(false, 500, "failed to get oauth account", nil, &[]string{err.Error()})
+	}
+	var user *domain.User
+	user, err = a.userRepo.GetByEmailUnscoped(payload.Email)
+	if err == nil {
+		if user.DeletedAt.Valid {
+			user.DeletedAt = gorm.DeletedAt{}
+			if _, err := a.userRepo.Update(user); err != nil {
+				return response.Login(false, 500, "failed to restore user", nil, &[]string{err.Error()})
+			}
+		}
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		newUser := &domain.User{
+			Username:  util.RandomUsername(),
+			FirstName: payload.FirstName,
+			LastName:  payload.LastName,
+			Email:     payload.Email,
+			ImageURL:  payload.AvatarURL,
+			Role:      domain.USER_ROLE,
+		}
+		user, err = a.userRepo.Create(newUser)
+		if err != nil {
+			return response.Login(false, 500, "failed to create user", nil, &[]string{err.Error()})
+		}
+	} else {
+		return response.Login(false, 500, "failed to lookup user", nil, &[]string{err.Error()})
+	}
+
+	_, err = a.oauthAccountRepo.Create(&domain.OauthAccount{
+		ID:             uuid.New(),
+		Username:       user.Username,
+		Provider:       "google",
+		ProviderUserID: payload.Subject,
+		Email:          payload.Email,
+	})
+	if err != nil {
+		return response.Login(false, 500, "failed to create oauth account", nil, &[]string{err.Error()})
+	}
+
+	// cache user session
+	if err := a.cacheUser(ctx, user); err != nil {
+		return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
+	}
+
+	return a.loginSuccess(ctx, user)
 }
 
 // OAuthLogin implements port.AuthenticationService.
@@ -307,9 +368,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 
 // Logout implements AuthenticationService.
 func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.LogoutResult {
-	if req.RefreshToken == "" {
-		return response.Logout(false, 400, "refresh_token is required", &[]string{"refresh_token is required"})
-	}
 	refreshPayload, err := a.tokenService.VerifyToken(req.RefreshToken)
 	if err != nil {
 		return response.Logout(false, 401, err.Error(), &[]string{err.Error()})
@@ -321,11 +379,20 @@ func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) 
 		}
 		return response.Logout(false, 500, err.Error(), &[]string{err.Error()})
 	}
-	if session.IsBlocked {
-		return response.Logout(true, 200, "session already invalidated", nil)
+	if refreshPayload.Username != session.Username {
+		return response.Logout(false, 403, "session does not belong to this user", nil)
 	}
+	if session.IsBlocked {
+		return response.Logout(true, 409, "session already invalidated", nil)
+	}
+
 	if err := a.sessionRepo.BlockSession(session.ID); err != nil {
 		return response.Logout(false, 500, err.Error(), &[]string{err.Error()})
+	}
+
+	cacheKey := util.GenerateCacheKey("user", refreshPayload.Username)
+	if err := a.cache.Delete(ctx, cacheKey); err != nil {
+		log.Printf("[Logout] failed to delete cache for %s: %v", refreshPayload.Username, err)
 	}
 	return response.Logout(true, 200, "logged out successfully", nil)
 }

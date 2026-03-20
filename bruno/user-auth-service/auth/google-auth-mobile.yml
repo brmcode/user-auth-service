@@ -1,0 +1,21 @@
+info:
+  name: google-auth-mobile
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{url}}/api/oauth/mobile/google"
+  body:
+    type: json
+    data: |-
+      {
+        "id_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6ImM0MWYxNDFhYTE5ZGYwYWM5N2RhYTU1ZTYwMDc2NmM0YzUzNjRjNDIiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI3NzAwNTE3MzQwNjgtaWttazR1a3ZmaGRiYzI1OG1idmozYWhiNnMwMThxaWguYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI3NzAwNTE3MzQwNjgtYmM4M28zb280bWVhMWNsam12Y2s2NTZwZGgxazEzNjAuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTA3Mjg5NjM4OTcxNjg3ODU0OTQiLCJlbWFpbCI6ImJhcmFtZWUuZW50QGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiQmFyYW1lZSBTcmlzb2RhIiwicGljdHVyZSI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0stb0tLRDhUaUZYNnk2Q1JpRFNPR0J0NlRNSnUxNV9sNW53aHJTRTVoX2hFZlJZaGs9czk2LWMiLCJnaXZlbl9uYW1lIjoiQmFyYW1lZSIsImZhbWlseV9uYW1lIjoiU3Jpc29kYSIsImlhdCI6MTc3NDAxNDg2NSwiZXhwIjoxNzc0MDE4NDY1fQ.WdcoOTEu9PENyOGtdGOSbCobKQj2RWABOedmnNK3c0w7_7y6ioNiy-uUr62EFCPnA39UhIscBVdmJA8S2V9n4h7AgqSilAHefVDa-aI2hyC2cPWv9AESxzuKS8uh9PXdAiFgbortF-ObpM4fDqf5vGUOrYHceugFC9zPjT0i9CSq76fBkp8xZ14sB2Wm_Jz_cd4mo77rdcEfJ-Ei1x70SdxixHRwbRizfRlzWijDnrRuW7-MDNNkdBh21uOPMbnKAvV4qNzIwv7lQHfNLcE2gSDIjpr671iSv_nFbdilsfzYPNgbdNDE9IItx7fZ8z8tNmUNYuZNnfavENTEphcWhQ"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -26,7 +26,7 @@ func main() {
 	validator := validator.NewValidator()
 	userCtrl := handler.NewUserHandler(validator, c.UserService)
 	authCtrl := handler.NewAuthHandler(validator, c.UserService, c.AuthService)
-	oauthCtrl := handler.NewOAuthHandler(c.AuthService)
+	oauthCtrl := handler.NewOAuthHandler(c.AuthService, c.IDTokenVerifier)
 
 	router, err := handler.NewRouter(
 		c.Cfg,

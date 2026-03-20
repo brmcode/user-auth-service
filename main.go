@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/google"
 	"github.com/brmcode/user-auth-service/internal/adapter/grpc"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler"
 	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
@@ -63,11 +64,12 @@ func main() {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
 	authServ := service.NewAuthenticationService(cfg, userRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
+	idTokenVerifier := google.NewIDTokenVerifier(cfg.OAuth.GoogleClientID)
 
 	validator := validator.NewValidator()
 	userCtrl := handler.NewUserHandler(validator, userServ)
 	authCtrl := handler.NewAuthHandler(validator, userServ, authServ)
-	oauthCtrl := handler.NewOAuthHandler(authServ)
+	oauthCtrl := handler.NewOAuthHandler(authServ, idTokenVerifier)
 
 	middleware.Set(tokenServ, db)
 

@@ -49,6 +49,7 @@ func NewRouter(
 		{
 			oauth.GET("/:provider", oauthHandler.Begin)
 			oauth.GET("/:provider/callback", oauthHandler.Callback)
+			oauth.POST("/mobile/google", oauthHandler.GoogleAuthMobile)
 		}
 		user := api.Group("/users")
 		{

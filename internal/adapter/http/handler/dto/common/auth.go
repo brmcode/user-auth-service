@@ -23,7 +23,7 @@ type LoginUserResponse struct {
 }
 
 type ReNewAccessTokenRequest struct {
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 type ReNewAccessTokenResponse struct {
@@ -39,4 +39,8 @@ type RegisterUserRequest struct {
 	ImageURL  string `json:"image_url" validate:"required,url"`
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=6"`
+}
+
+type GoogleAuthRequest struct {
+	IDToken string `json:"id_token" binding:"required"`
 }

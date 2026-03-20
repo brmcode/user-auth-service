@@ -3,6 +3,8 @@ package handler
 import (
 	"net/http"
 
+	"github.com/brmcode/user-auth-service/internal/adapter/google"
+	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/gin-gonic/gin"
@@ -11,10 +13,11 @@ import (
 
 type OAuthHandler struct {
 	authService port.AuthenticationService
+	verifier    *google.IDTokenVerifier
 }
 
-func NewOAuthHandler(authService port.AuthenticationService) *OAuthHandler {
-	return &OAuthHandler{authService: authService}
+func NewOAuthHandler(authService port.AuthenticationService, verifier *google.IDTokenVerifier) *OAuthHandler {
+	return &OAuthHandler{authService: authService, verifier: verifier}
 }
 
 func (o *OAuthHandler) Begin(ctx *gin.Context) {
@@ -45,6 +48,28 @@ func (o *OAuthHandler) Callback(ctx *gin.Context) {
 	}
 
 	res := o.authService.OAuthLogin(ctx, provider, user)
+	if !res.Success {
+		ctx.JSON(res.StatusCode, res)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, res)
+}
+
+func (o *OAuthHandler) GoogleAuthMobile(ctx *gin.Context) {
+	var req dto.GoogleAuthRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		return
+	}
+
+	payload, err := o.verifier.Verify(ctx.Request.Context(), req.IDToken)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, response.NewError(http.StatusUnauthorized, err.Error()))
+		return
+	}
+
+	res := o.authService.GoogleAuthMobile(ctx, payload)
 	if !res.Success {
 		ctx.JSON(res.StatusCode, res)
 		return
