@@ -31,206 +31,80 @@ type authService struct {
 }
 
 // GoogleAuthMobile implements [port.AuthenticationService].
-func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload) *response.LoginResult {
-	account, err := a.oauthAccountRepo.GetByProvider("google", payload.Subject)
+func (a *authService) GoogleAuthMobile(ctx *gin.Context, claims *google.Payload) *response.LoginResult {
+	account, err := a.oauthAccountRepo.GetByProvider("google", claims.Subject)
 	if err == nil {
 		user, err := a.userRepo.Get(account.Username)
 		if err != nil {
-			return response.Login(false, 500, "failed to get user", nil, &[]string{err.Error()})
+			return response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
 		}
 		return a.loginSuccess(ctx, user)
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return response.Login(false, 500, "failed to get oauth account", nil, &[]string{err.Error()})
+		return response.Login(false, 500, "failed to get oauth account", false, nil, &[]string{err.Error()})
 	}
-	var user *domain.User
-	user, err = a.userRepo.GetByEmailUnscoped(payload.Email)
+
+	user, err := a.userRepo.GetByEmailUnscoped(claims.Email)
 	if err == nil {
 		if user.DeletedAt.Valid {
 			user.DeletedAt = gorm.DeletedAt{}
 			if _, err := a.userRepo.Update(user); err != nil {
-				return response.Login(false, 500, "failed to restore user", nil, &[]string{err.Error()})
+				return response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
 			}
 		}
-	} else if errors.Is(err, gorm.ErrRecordNotFound) {
-		newUser := &domain.User{
-			Username:  util.RandomUsername(),
-			FirstName: payload.FirstName,
-			LastName:  payload.LastName,
-			Email:     payload.Email,
-			ImageURL:  payload.AvatarURL,
-			Role:      domain.USER_ROLE,
+		if err := a.linkGoogleAccount(user.Username, claims); err != nil {
+			return response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
 		}
-		user, err = a.userRepo.Create(newUser)
-		if err != nil {
-			return response.Login(false, 500, "failed to create user", nil, &[]string{err.Error()})
+		if err := a.cacheUser(ctx, user); err != nil {
+			log.Printf("[GoogleAuthMobile] failed to cache user %s: %v", user.Username, err)
 		}
-	} else {
-		return response.Login(false, 500, "failed to lookup user", nil, &[]string{err.Error()})
+		return a.loginSuccess(ctx, user)
 	}
 
-	_, err = a.oauthAccountRepo.Create(&domain.OauthAccount{
-		ID:             uuid.New(),
-		Username:       user.Username,
-		Provider:       "google",
-		ProviderUserID: payload.Subject,
-		Email:          payload.Email,
-	})
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return response.Login(false, 500, "failed to lookup user", false, nil, &[]string{err.Error()})
+	}
+
+	newUser := &domain.User{
+		Username:  util.RandomUsername(),
+		FirstName: claims.FirstName,
+		LastName:  claims.LastName,
+		Email:     claims.Email,
+		ImageURL:  claims.AvatarURL,
+		Role:      domain.USER_ROLE,
+	}
+	created, err := a.userRepo.Create(newUser)
 	if err != nil {
-		return response.Login(false, 500, "failed to create oauth account", nil, &[]string{err.Error()})
+		return response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
 	}
 
-	// cache user session
-	if err := a.cacheUser(ctx, user); err != nil {
-		return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
+	if err := a.linkGoogleAccount(created.Username, claims); err != nil {
+		return response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
 	}
 
-	return a.loginSuccess(ctx, user)
+	if err := a.cacheUser(ctx, created); err != nil {
+		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+	}
+
+	result := a.loginSuccess(ctx, created)
+	result.NewUser = true
+	return result
 }
 
-// OAuthLogin implements port.AuthenticationService.
-// func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) *response.Login {
-// 	account, err := a.oauthAccountRepo.GetByProvider(provider, gUser.UserID)
-// 	if err != nil {
-// 		if errors.Is(err, gorm.ErrRecordNotFound) {
-// 			// 1. Try to find any user (including soft-deleted) with the same email.
-// 			existingUser, errUser := a.userRepo.GetByEmailUnscoped(gUser.Email)
-// 			if errUser == nil {
-// 				// User exists (maybe soft-deleted) – restore if necessary and link OAuth account.
-// 				if existingUser.DeletedAt.Valid {
-// 					existingUser.DeletedAt = gorm.DeletedAt{}
-// 					if _, err := a.userRepo.Update(existingUser); err != nil {
-// 						return response.Login(false, 500, "failed to restore user", nil, &[]string{err.Error()})
-// 					}
-// 				}
-
-// 				// Ensure there's an OAuth account for this user.
-// 				_, err := a.oauthAccountRepo.Create(&domain.OauthAccount{
-// 					ID:             uuid.New(),
-// 					Username:       existingUser.Username,
-// 					Provider:       provider,
-// 					ProviderUserID: gUser.UserID,
-// 					Email:          gUser.Email,
-// 				})
-
-// 				if err != nil {
-// 					return response.Login(false, 500, "failed to create oauth account", nil, &[]string{err.Error()})
-// 				}
-
-// 				// Update cache for the restored/existing user.
-// 				cacheKey := util.GenerateCacheKey("user", existingUser.Username)
-// 				userSerialized, err := util.Serialize(existingUser)
-// 				if err != nil {
-// 					return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
-// 				}
-
-// 				errChan := make(chan error, 2)
-// 				go func() {
-// 					errChan <- a.cache.Set(ctx, cacheKey, userSerialized, a.config.Redis.TTL)
-// 				}()
-// 				go func() {
-// 					errChan <- a.cache.DeleteByPrefix(ctx, "users:*")
-// 				}()
-
-// 				for i := 0; i < 2; i++ {
-// 					if err := <-errChan; err != nil {
-// 						return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
-// 					}
-// 				}
-// 				token, err := util.IssueSessionAndTokens(ctx, existingUser, a.config, a.tokenService, a.sessionRepo)
-// 				if err != nil {
-// 					return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
-// 				}
-// 				return response.Login(true, 200, "oauth login successful", token, nil)
-// 			}
-
-// 			// 2. User with this email does not exist at all – create new user and OAuth account.
-// 			if !errors.Is(errUser, gorm.ErrRecordNotFound) {
-// 				return response.Login(false, 500, "failed to lookup user by email", nil, &[]string{errUser.Error()})
-// 			}
-
-// 			user := &domain.User{
-// 				Username:  util.RandomUsername(),
-// 				FirstName: gUser.FirstName,
-// 				LastName:  gUser.LastName,
-// 				Email:     gUser.Email,
-// 				ImageURL:  gUser.AvatarURL,
-// 				Role:      domain.USER_ROLE,
-// 			}
-
-// 			createdUser, err := a.userRepo.Create(user)
-// 			if err != nil {
-// 				return response.Login(false, 500, "failed to create user", nil, &[]string{err.Error()})
-// 			}
-
-// 			_, err = a.oauthAccountRepo.Create(&domain.OauthAccount{
-// 				ID:             uuid.New(),
-// 				Username:       createdUser.Username,
-// 				Provider:       provider,
-// 				ProviderUserID: gUser.UserID,
-// 				Email:          gUser.Email,
-// 			})
-// 			if err != nil {
-// 				return response.Login(false, 500, "failed to create oauth account", nil, &[]string{err.Error()})
-// 			}
-
-// 			token, err := util.IssueSessionAndTokens(ctx, createdUser, a.config, a.tokenService, a.sessionRepo)
-// 			if err != nil {
-// 				return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
-// 			}
-// 			//set cache for the new user and invalidate users list cache concurrently
-// 			{
-// 				cacheKey := util.GenerateCacheKey("user", createdUser.Username)
-// 				userSerialized, err := util.Serialize(createdUser)
-// 				if err != nil {
-// 					return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
-// 				}
-
-// 				errChan := make(chan error, 2)
-// 				go func() {
-// 					errChan <- a.cache.Set(ctx, cacheKey, userSerialized, a.config.Redis.TTL)
-// 				}()
-// 				go func() {
-// 					errChan <- a.cache.DeleteByPrefix(ctx, "users:*")
-// 				}()
-
-// 				for i := 0; i < 2; i++ {
-// 					if err := <-errChan; err != nil {
-// 						return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
-// 					}
-// 				}
-// 			}
-// 			return response.Login(true, 200, "oauth login successful", token, nil)
-// 		}
-// 		return response.Login(false, 500, "failed to get oauth account", nil, &[]string{err.Error()})
-// 	}
-
-// 	// OAuth account exists, get the associated user
-// 	user, err := a.userRepo.Get(account.Username)
-// 	if err != nil {
-// 		return response.Login(false, 500, "failed to get user", nil, &[]string{err.Error()})
-// 	}
-
-// 	token, err := util.IssueSessionAndTokens(ctx, user, a.config, a.tokenService, a.sessionRepo)
-// 	if err != nil {
-// 		return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
-// 	}
-// 	return response.Login(true, 200, "oauth login successful", token, nil)
-// }
-
+// OAuthLogin implements [port.AuthenticationService].
 func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) *response.LoginResult {
 	account, err := a.oauthAccountRepo.GetByProvider(provider, gUser.UserID)
 	if err == nil {
 		user, err := a.userRepo.Get(account.Username)
 		if err != nil {
-			return response.Login(false, 500, "failed to get user", nil, &[]string{err.Error()})
+			return response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
 		}
 		return a.loginSuccess(ctx, user)
 	}
 
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return response.Login(false, 500, "failed to get oauth account", nil, &[]string{err.Error()})
+		return response.Login(false, 500, "failed to get oauth account", false, nil, &[]string{err.Error()})
 	}
 
 	user, err := a.userRepo.GetByEmailUnscoped(gUser.Email)
@@ -238,7 +112,7 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 		if user.DeletedAt.Valid {
 			user.DeletedAt = gorm.DeletedAt{}
 			if _, err := a.userRepo.Update(user); err != nil {
-				return response.Login(false, 500, "failed to restore user", nil, &[]string{err.Error()})
+				return response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
 			}
 		}
 	} else if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -253,10 +127,10 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 
 		user, err = a.userRepo.Create(newUser)
 		if err != nil {
-			return response.Login(false, 500, "failed to create user", nil, &[]string{err.Error()})
+			return response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
 		}
 	} else {
-		return response.Login(false, 500, "failed to lookup user", nil, &[]string{err.Error()})
+		return response.Login(false, 500, "failed to lookup user", false, nil, &[]string{err.Error()})
 	}
 
 	_, err = a.oauthAccountRepo.Create(&domain.OauthAccount{
@@ -267,26 +141,23 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 		Email:          gUser.Email,
 	})
 	if err != nil {
-		return response.Login(false, 500, "failed to create oauth account", nil, &[]string{err.Error()})
+		return response.Login(false, 500, "failed to create oauth account", false, nil, &[]string{err.Error()})
 	}
 
-	// cache
 	if err := a.cacheUser(ctx, user); err != nil {
-		return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
+		log.Printf("[OAuthLogin] failed to cache user %s: %v", user.Username, err)
 	}
 
 	return a.loginSuccess(ctx, user)
 }
 
-// ReNewAccessToken implements AuthenticationService.
+// ReNewAccessToken implements [port.AuthenticationService].
 func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.RefreshTokenResult {
-	// Step 1: Verify the refresh token
 	refreshPayload, err := a.tokenService.VerifyToken(req.RefreshToken)
 	if err != nil {
 		return response.RefreshToken(false, 401, err.Error(), nil, &[]string{err.Error()})
 	}
 
-	// Step 2: Retrieve the session by token ID
 	session, err := a.sessionRepo.Get(refreshPayload.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -295,7 +166,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return response.RefreshToken(false, 500, err.Error(), nil, &[]string{err.Error()})
 	}
 
-	// Step 3: Validate session state and ownership
 	if session.IsBlocked {
 		return response.RefreshToken(false, 401, "blocked session", nil, nil)
 	}
@@ -312,7 +182,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return response.RefreshToken(false, 401, "expired session", nil, nil)
 	}
 
-	// Step 4: Ensure user still exists and their role matches the token
 	userOfsession, err := a.userRepo.Get(session.Username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -327,7 +196,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return response.RefreshToken(false, 401, "user role has changed: sessions have been invalidated, please login again", nil, nil)
 	}
 
-	// Step 5: Generate new access token
 	accessToken, accessPayload, err := a.tokenService.GenerateToken(
 		uuid.Nil,
 		refreshPayload.Username,
@@ -338,7 +206,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return response.RefreshToken(false, 500, fmt.Sprintf("could not generate new access token: %s", err.Error()), nil, &[]string{err.Error()})
 	}
 
-	// Step 6: Generate new refresh token
 	RefreshToken, newRefreshPayload, err := a.tokenService.GenerateToken(
 		refreshPayload.ID,
 		refreshPayload.Username,
@@ -349,7 +216,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return response.RefreshToken(false, 500, fmt.Sprintf("could not generate new refresh token: %s", err.Error()), nil, &[]string{err.Error()})
 	}
 
-	// Step 7: Update session with new refresh token and expiry
 	session.RefreshToken = RefreshToken
 	session.ExpiresAt = newRefreshPayload.ExpiresAt
 
@@ -357,7 +223,6 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		return response.RefreshToken(false, 500, err.Error(), nil, &[]string{err.Error()})
 	}
 
-	// Step 8: Return response
 	return response.RefreshToken(true, 200, "refresh token renewed successfully", &dto.ReNewAccessTokenResponse{
 		AccessToken:           accessToken,
 		AccessTokenExpriresAt: accessPayload.ExpiresAt,
@@ -366,7 +231,7 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 	}, nil)
 }
 
-// Logout implements AuthenticationService.
+// Logout implements [port.AuthenticationService].
 func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.LogoutResult {
 	refreshPayload, err := a.tokenService.VerifyToken(req.RefreshToken)
 	if err != nil {
@@ -397,28 +262,28 @@ func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) 
 	return response.Logout(true, 200, "logged out successfully", nil)
 }
 
-// Login implements AuthenticationService.
+// Login implements [port.AuthenticationService].
 func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) *response.LoginResult {
 	user, err := a.userRepo.GetByEmailAndRole(cred.Email, cred.Role)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return response.Login(false, 404, "user not found", nil, &[]string{err.Error()})
+			return response.Login(false, 404, "user not found", false, nil, &[]string{err.Error()})
 		}
-		return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
 	}
 
 	if err := util.ComparePassword(cred.Password, user.HashedPassword); err != nil {
-		return response.Login(false, 400, "invalid credentials", nil, &[]string{err.Error()})
+		return response.Login(false, 400, "invalid credentials", false, nil, &[]string{err.Error()})
 	}
 
 	token, err := util.IssueSessionAndTokens(ctx, user, a.config, a.tokenService, a.sessionRepo)
 	if err != nil {
-		return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
 	}
-	return response.Login(true, 200, "login successful", token, nil)
+	return response.Login(true, 200, "login successful", false, token, nil)
 }
 
-// Register implements AuthenticationService.
+// Register implements [port.AuthenticationService].
 func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *response.User {
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
@@ -448,7 +313,7 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 	cacheKey := util.GenerateCacheKey("user", createdUser.Username)
 	userSerialized, err := util.Serialize(createdUser)
 	if err != nil {
-		return response.NewUser(false, 500, err.Error(), nil, &[]string{err.Error()})
+		log.Printf("[Register] failed to serialize user %s: %v", createdUser.Username, err)
 	}
 
 	// Parallel cache operations: set new cache and delete prefix cache concurrently
@@ -463,7 +328,7 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 	// Wait for both operations
 	for i := 0; i < 2; i++ {
 		if err := <-errChan; err != nil {
-			return response.NewUser(false, 500, err.Error(), nil, &[]string{err.Error()})
+			log.Printf("[Register] cache operation failed for user %s: %v", createdUser.Username, err)
 		}
 	}
 
@@ -506,8 +371,19 @@ func (a *authService) cacheUser(ctx *gin.Context, user *domain.User) error {
 func (a *authService) loginSuccess(ctx *gin.Context, user *domain.User) *response.LoginResult {
 	token, err := util.IssueSessionAndTokens(ctx, user, a.config, a.tokenService, a.sessionRepo)
 	if err != nil {
-		return response.Login(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
 	}
 
-	return response.Login(true, 200, "oauth login successful", token, nil)
+	return response.Login(true, 200, "oauth login successful", false, token, nil)
+}
+
+func (a *authService) linkGoogleAccount(username string, payload *google.Payload) error {
+	_, err := a.oauthAccountRepo.Create(&domain.OauthAccount{
+		ID:             uuid.New(),
+		Username:       username,
+		Provider:       "google",
+		ProviderUserID: payload.Subject,
+		Email:          payload.Email,
+	})
+	return err
 }

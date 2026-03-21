@@ -6,6 +6,7 @@ type LoginResult struct {
 	Success    bool                   `json:"success"`
 	StatusCode int                    `json:"status_code"`
 	Message    string                 `json:"message"`
+	NewUser    bool                   `json:"new_user,omitempty"`
 	Data       *dto.LoginUserResponse `json:"data,omitempty"`
 	Errors     []string               `json:"errors,omitempty"`
 }
@@ -25,9 +26,9 @@ type LogoutResult struct {
 	Errors     []string `json:"errors,omitempty"`
 }
 
-func Login(success bool, statusCode int, message string, data *dto.LoginUserResponse, errors *[]string) *LoginResult {
+func Login(success bool, statusCode int, message string, newUser bool, data *dto.LoginUserResponse, errors *[]string) *LoginResult {
 	if success {
-		return &LoginResult{Success: true, StatusCode: statusCode, Message: message, Data: data}
+		return &LoginResult{Success: true, StatusCode: statusCode, Message: message, NewUser: newUser, Data: data}
 	}
 	var errs []string
 	if errors != nil {
