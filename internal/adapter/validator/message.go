@@ -36,4 +36,6 @@ var ShortMessages = map[string]string{
 	"hexlower":     "must be a valid hexadecimal string (lowercase)",
 	"optional_url": "must be a valid URL",
 	"date":         "must be a valid date in one of the formats: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, or YYYY/MM/DD",
+	"role":         "must be a valid role code (USER or ADMIN)",
+	"roles":        "must be a non-empty list of valid, unique role codes (USER, ADMIN)",
 }

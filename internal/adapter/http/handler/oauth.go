@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/google"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth/google"
 	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"

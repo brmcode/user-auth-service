@@ -10,6 +10,7 @@ import (
 type UserRepository interface {
 	Create(user *domain.User) (*domain.User, error)
 	Get(username string) (*domain.User, error)
+	GetByEmail(email string) (*domain.User, error)
 	GetByEmailAndRole(email string, role string) (*domain.User, error)
 	GetByEmailUnscoped(email string) (*domain.User, error)
 	Update(user *domain.User) (*domain.User, error)

@@ -26,22 +26,19 @@ func Set(ts port.TokenService, db *database.DB) {
 	_db = db
 }
 
-func Authorized(role ...string) gin.HandlerFunc {
+func Authorized(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authorizationHeader := c.GetHeader(authorizationHeaderKey)
-
-		if authorizationHeader == "" {
+		authHeader := c.GetHeader(authorizationHeaderKey)
+		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, "authorization header is missing"))
 			return
 		}
-
-		if !strings.HasPrefix(authorizationHeader, authorizationType) {
+		if !strings.HasPrefix(authHeader, authorizationType) {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, "invalid authorization format"))
 			return
 		}
 
-		tokenString := strings.TrimPrefix(authorizationHeader, authorizationType)
-
+		tokenString := strings.TrimPrefix(authHeader, authorizationType)
 		if tokenService == nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, response.NewError(500, "token service not initialized"))
 			return
@@ -58,13 +55,22 @@ func Authorized(role ...string) gin.HandlerFunc {
 		}
 
 		if err := _db.First(&domain.User{}, "username = ?", payload.Username).Error; err != nil {
-			// This error can occur if the user was deleted or disabled after the token was issued.
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, "your account is no longer active or may have been removed"))
 			return
 		}
-		if len(role) > 0 && role[0] != payload.Role {
-			c.AbortWithStatusJSON(http.StatusForbidden, response.NewError(403, "insufficient privileges"))
-			return
+
+		if len(roles) > 0 {
+			hasRequired := false
+			for _, required := range roles {
+				if payload.HasRole(required) {
+					hasRequired = true
+					break
+				}
+			}
+			if !hasRequired {
+				c.AbortWithStatusJSON(http.StatusForbidden, response.NewError(403, "insufficient privileges"))
+				return
+			}
 		}
 
 		auth.SetPayload(c, payload)

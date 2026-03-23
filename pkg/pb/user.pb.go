@@ -28,7 +28,7 @@ type User struct {
 	FirstName         string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
 	LastName          string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
 	Email             string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
-	Role              string                 `protobuf:"bytes,5,opt,name=role,proto3" json:"role,omitempty"`
+	Roles             []string               `protobuf:"bytes,5,rep,name=roles,proto3" json:"roles,omitempty"`
 	PasswordChangedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=password_changed_at,json=passwordChangedAt,proto3" json:"password_changed_at,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields     protoimpl.UnknownFields
@@ -93,11 +93,11 @@ func (x *User) GetEmail() string {
 	return ""
 }
 
-func (x *User) GetRole() string {
+func (x *User) GetRoles() []string {
 	if x != nil {
-		return x.Role
+		return x.Roles
 	}
-	return ""
+	return nil
 }
 
 func (x *User) GetPasswordChangedAt() *timestamppb.Timestamp {
@@ -119,14 +119,14 @@ var File_user_proto protoreflect.FileDescriptor
 const file_user_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"user.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x02\n" +
+	"user.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"\x91\x02\n" +
 	"\x04User\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1d\n" +
 	"\n" +
 	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
 	"\tlast_name\x18\x03 \x01(\tR\blastName\x12\x14\n" +
-	"\x05email\x18\x04 \x01(\tR\x05email\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\x12J\n" +
+	"\x05email\x18\x04 \x01(\tR\x05email\x12\x14\n" +
+	"\x05roles\x18\x05 \x03(\tR\x05roles\x12J\n" +
 	"\x13password_changed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x11passwordChangedAt\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB-Z+github.com/brmcode/user-auth-service/pkg/pbb\x06proto3"

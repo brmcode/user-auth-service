@@ -2,15 +2,14 @@ package handler
 
 import (
 	"net/http"
+	"sort"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/auth"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/request"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
-
 	"github.com/brmcode/user-auth-service/internal/core/port"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,8 +18,8 @@ type UserHandler struct {
 	userService port.UserService
 }
 
-func NewUserHandler(validator *validator.Validator, userService port.UserService) *UserHandler {
-	return &UserHandler{validator: validator, userService: userService}
+func NewUserHandler(v *validator.Validator, userService port.UserService) *UserHandler {
+	return &UserHandler{validator: v, userService: userService}
 }
 
 func (u *UserHandler) GetUser(ctx *gin.Context) {
@@ -80,7 +79,7 @@ func (u *UserHandler) UpdateUser(ctx *gin.Context) {
 	}
 
 	if username != req.Username {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, "username not match"))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, "username in path does not match body"))
 		return
 	}
 
@@ -89,8 +88,8 @@ func (u *UserHandler) UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	if payload.Role != domain.ADMIN_ROLE && req.Role != payload.Role {
-		ctx.JSON(http.StatusForbidden, response.NewError(403, "insufficient permissions to change role"))
+	if !payload.HasRole(domain.ADMIN_ROLE) && !roleCodesEqual(payload.Roles, req.Roles) {
+		ctx.JSON(http.StatusForbidden, response.NewError(403, "insufficient permissions to change roles"))
 		return
 	}
 
@@ -118,4 +117,21 @@ func (u *UserHandler) DeleteUser(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusNoContent)
+}
+
+func roleCodesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	ac, bc := make([]string, len(a)), make([]string, len(b))
+	copy(ac, a)
+	copy(bc, b)
+	sort.Strings(ac)
+	sort.Strings(bc)
+	for i := range ac {
+		if ac[i] != bc[i] {
+			return false
+		}
+	}
+	return true
 }

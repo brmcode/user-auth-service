@@ -1,7 +1,7 @@
 package google
 
 type Payload struct {
-	Subject   string // Google's unique user ID (sub)
+	Subject   string
 	Email     string
 	FirstName string
 	LastName  string

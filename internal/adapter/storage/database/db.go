@@ -50,11 +50,16 @@ func New(config *config.DB) (*DB, error) {
 }
 
 func (db *DB) Migrate() error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
+		&domain.Role{},
 		&domain.User{},
+		&domain.UserRole{},
 		&domain.Session{},
 		&domain.OauthAccount{},
-	)
+	); err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+	return db.seedRoles()
 }
 
 func (db *DB) Close() error {
@@ -63,4 +68,27 @@ func (db *DB) Close() error {
 		return err
 	}
 	return sqlDB.Close()
+}
+
+func (db *DB) seedRoles() error {
+	defaultRoles := []domain.Role{
+		{
+			Code:        domain.USER_ROLE,
+			Name:        "User",
+			Description: "Standard user with self-service access",
+		},
+		{
+			Code:        domain.ADMIN_ROLE,
+			Name:        "Administrator",
+			Description: "Full administrative access",
+		},
+	}
+
+	for _, role := range defaultRoles {
+		result := db.Where(domain.Role{Code: role.Code}).FirstOrCreate(&role)
+		if result.Error != nil {
+			return fmt.Errorf("seeding role %s: %w", role.Code, result.Error)
+		}
+	}
+	return nil
 }

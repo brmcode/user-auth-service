@@ -24,7 +24,16 @@ type AuthServer struct {
 }
 
 func (a *AuthServer) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*pb.LoginUserResponse, error) {
-	user, err := a.userRepo.GetByEmailAndRole(req.GetEmail(), req.GetRole())
+	var (
+		user *domain.User
+		err  error
+	)
+
+	if req.GetRole() != "" {
+		user, err = a.userRepo.GetByEmailAndRole(req.GetEmail(), req.GetRole())
+	} else {
+		user, err = a.userRepo.GetByEmail(req.GetEmail())
+	}
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, status.Error(codes.NotFound, "user not found")
@@ -33,23 +42,28 @@ func (a *AuthServer) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 	}
 
 	if err := util.ComparePassword(req.GetPassword(), user.HashedPassword); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, "invalid credentials")
 	}
 
-	accessToken, accessPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.TokenDuration)
+	accessToken, accessPayload, err := a.tokenService.GenerateToken(
+		uuid.Nil, user.Username, user.RoleCodes(), a.config.Auth.TokenDuration,
+	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not generate access token: %s", err)
 	}
 
-	refresh_token, refreshPayload, err := a.tokenService.GenerateToken(uuid.Nil, user.Username, user.Role, a.config.Auth.RefreshTokenDuration)
+	refreshToken, refreshPayload, err := a.tokenService.GenerateToken(
+		uuid.Nil, user.Username, user.RoleCodes(), a.config.Auth.RefreshTokenDuration,
+	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not generate refresh token: %s", err)
 	}
+
 	metadata := extractMetadata(ctx)
 	session, err := a.sessionRepo.Create(&domain.Session{
 		ID:           refreshPayload.ID,
 		Username:     user.Username,
-		RefreshToken: refresh_token,
+		RefreshToken: refreshToken,
 		UserAgent:    metadata.UserAgent,
 		ClientIP:     metadata.ClientIP,
 		ExpiresAt:    refreshPayload.ExpiresAt,
@@ -64,18 +78,28 @@ func (a *AuthServer) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 			FirstName:         user.FirstName,
 			LastName:          user.LastName,
 			Email:             user.Email,
-			Role:              user.Role,
+			Roles:             user.RoleCodes(),
 			PasswordChangedAt: timestamppb.New(user.PasswordChangedAt),
 			CreatedAt:         timestamppb.New(user.CreatedAt),
 		},
 		SessionId:             session.ID.String(),
 		AccessToken:           accessToken,
 		AccessTokenExpiresAt:  timestamppb.New(accessPayload.ExpiresAt),
-		RefreshToken:          refresh_token,
+		RefreshToken:          refreshToken,
 		RefreshTokenExpiresAt: timestamppb.New(refreshPayload.ExpiresAt),
 	}, nil
 }
 
-func NewAuthServer(config *config.Configuration, userRepo port.UserRepository, sessionRepo port.SessionRepository, tokenService port.TokenService) *AuthServer {
-	return &AuthServer{config: config, userRepo: userRepo, sessionRepo: sessionRepo, tokenService: tokenService}
+func NewAuthServer(
+	cfg *config.Configuration,
+	userRepo port.UserRepository,
+	sessionRepo port.SessionRepository,
+	tokenService port.TokenService,
+) *AuthServer {
+	return &AuthServer{
+		config:       cfg,
+		userRepo:     userRepo,
+		sessionRepo:  sessionRepo,
+		tokenService: tokenService,
+	}
 }
