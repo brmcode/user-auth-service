@@ -28,7 +28,7 @@ type CreateUserRequest struct {
 	LastName      string                 `protobuf:"bytes,2,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
 	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
 	Password      string                 `protobuf:"bytes,4,opt,name=password,proto3" json:"password,omitempty"`
-	Role          string                 `protobuf:"bytes,5,opt,name=role,proto3" json:"role,omitempty"`
+	Roles         []string               `protobuf:"bytes,5,rep,name=roles,proto3" json:"roles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -91,11 +91,11 @@ func (x *CreateUserRequest) GetPassword() string {
 	return ""
 }
 
-func (x *CreateUserRequest) GetRole() string {
+func (x *CreateUserRequest) GetRoles() []string {
 	if x != nil {
-		return x.Role
+		return x.Roles
 	}
-	return ""
+	return nil
 }
 
 type CreateUserResponse struct {
@@ -104,7 +104,7 @@ type CreateUserResponse struct {
 	FirstName         string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
 	LastName          string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
 	Email             string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
-	Role              string                 `protobuf:"bytes,5,opt,name=role,proto3" json:"role,omitempty"`
+	Roles             []string               `protobuf:"bytes,5,rep,name=roles,proto3" json:"roles,omitempty"`
 	PasswordChangedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=password_changed_at,json=passwordChangedAt,proto3" json:"password_changed_at,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields     protoimpl.UnknownFields
@@ -169,11 +169,11 @@ func (x *CreateUserResponse) GetEmail() string {
 	return ""
 }
 
-func (x *CreateUserResponse) GetRole() string {
+func (x *CreateUserResponse) GetRoles() []string {
 	if x != nil {
-		return x.Role
+		return x.Roles
 	}
-	return ""
+	return nil
 }
 
 func (x *CreateUserResponse) GetPasswordChangedAt() *timestamppb.Timestamp {
@@ -194,21 +194,21 @@ var File_rpc_create_user_proto protoreflect.FileDescriptor
 
 const file_rpc_create_user_proto_rawDesc = "" +
 	"\n" +
-	"\x15rpc_create_user.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\x01\n" +
+	"\x15rpc_create_user.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"\x97\x01\n" +
 	"\x11CreateUserRequest\x12\x1d\n" +
 	"\n" +
 	"first_name\x18\x01 \x01(\tR\tfirstName\x12\x1b\n" +
 	"\tlast_name\x18\x02 \x01(\tR\blastName\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x04 \x01(\tR\bpassword\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\"\x9d\x02\n" +
+	"\bpassword\x18\x04 \x01(\tR\bpassword\x12\x14\n" +
+	"\x05roles\x18\x05 \x03(\tR\x05roles\"\x9f\x02\n" +
 	"\x12CreateUserResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1d\n" +
 	"\n" +
 	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
 	"\tlast_name\x18\x03 \x01(\tR\blastName\x12\x14\n" +
-	"\x05email\x18\x04 \x01(\tR\x05email\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\x12J\n" +
+	"\x05email\x18\x04 \x01(\tR\x05email\x12\x14\n" +
+	"\x05roles\x18\x05 \x03(\tR\x05roles\x12J\n" +
 	"\x13password_changed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x11passwordChangedAt\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB-Z+github.com/brmcode/user-auth-service/pkg/pbb\x06proto3"

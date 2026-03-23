@@ -1,37 +1,39 @@
 package auth
 
-import (
-	"github.com/gin-gonic/gin"
-)
+import "github.com/gin-gonic/gin"
 
-const (
-	PayloadKey = "authPayloadKey"
-)
+const PayloadKey = "authPayloadKey"
 
-func SetPayload(c *gin.Context, payload any) {
-	c.Set(PayloadKey, payload)
-}
+func SetPayload(c *gin.Context, payload any) { c.Set(PayloadKey, payload) }
 
 func GetPayload(ctx *gin.Context) *Payload {
-	value, exists := ctx.Get("authPayloadKey")
+	v, exists := ctx.Get(PayloadKey)
 	if !exists {
 		return nil
 	}
-	return value.(*Payload)
+	return v.(*Payload)
 }
 
 func GetUsername(ctx *gin.Context) string {
-	payload := GetPayload(ctx)
-	if payload == nil {
+	p := GetPayload(ctx)
+	if p == nil {
 		return ""
 	}
-	return payload.Username
+	return p.Username
 }
 
-func GetRole(ctx *gin.Context) string {
-	payload := GetPayload(ctx)
-	if payload == nil {
-		return ""
+func GetRoles(ctx *gin.Context) []string {
+	p := GetPayload(ctx)
+	if p == nil {
+		return nil
 	}
-	return payload.Role
+	return p.Roles
+}
+
+func HasRole(ctx *gin.Context, role string) bool {
+	p := GetPayload(ctx)
+	if p == nil {
+		return false
+	}
+	return p.HasRole(role)
 }

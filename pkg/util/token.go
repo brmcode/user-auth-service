@@ -8,41 +8,44 @@ import (
 	"github.com/brmcode/user-auth-service/internal/adapter/auth/paseto"
 	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
-
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func NewTokenService(config *config.Auth) (port.TokenService, error) {
-	switch config.TokenType {
+func NewTokenService(cfg *config.Auth) (port.TokenService, error) {
+	switch cfg.TokenType {
 	case "paseto", "PASETO":
-		return paseto.New(config.SecretKey)
+		return paseto.New(cfg.SecretKey)
 	case "jwt", "JWT":
-		return jwt.New(config.SecretKey)
+		return jwt.New(cfg.SecretKey)
 	default:
-		return nil, fmt.Errorf("unsupported token type "+"\"%s\". Only \"paseto\" and \"jwt\" are supported", config.TokenType)
+		return nil, fmt.Errorf("unsupported token type %q. Only \"paseto\" and \"jwt\" are supported", cfg.TokenType)
 	}
 }
 
-func IssueSessionAndTokens(ctx *gin.Context, user *domain.User, config *config.Configuration, tokenService port.TokenService, sessionRepo port.SessionRepository) (*dto.LoginUserResponse, error) {
-	// Generate token
-	accessToken, accessPayload, err := generateAccessToken(user, config, tokenService)
+func IssueSessionAndTokens(
+	ctx *gin.Context,
+	user *domain.User,
+	cfg *config.Configuration,
+	tokenService port.TokenService,
+	sessionRepo port.SessionRepository,
+) (*dto.LoginUserResponse, error) {
+	accessToken, accessPayload, err := generateAccessToken(user, cfg, tokenService)
 	if err != nil {
 		return nil, fmt.Errorf("could not generate access token: %v", err)
 	}
 
-	refresh_token, refreshPayload, err := generateRefreshToken(user, config, tokenService)
+	refreshToken, refreshPayload, err := generateRefreshToken(user, cfg, tokenService)
 	if err != nil {
 		return nil, fmt.Errorf("could not generate refresh token: %v", err)
-
 	}
 
 	session, err := sessionRepo.Create(&domain.Session{
 		ID:           refreshPayload.ID,
 		Username:     user.Username,
-		RefreshToken: refresh_token,
+		RefreshToken: refreshToken,
 		UserAgent:    ctx.Request.UserAgent(),
 		ClientIP:     ctx.ClientIP(),
 		ExpiresAt:    refreshPayload.ExpiresAt,
@@ -55,26 +58,16 @@ func IssueSessionAndTokens(ctx *gin.Context, user *domain.User, config *config.C
 		SessionID:             session.ID,
 		AccessToken:           accessToken,
 		AccessTokenExpriresAt: accessPayload.ExpiresAt,
-		RefreshToken:          refresh_token,
+		RefreshToken:          refreshToken,
 		RefreshTokenExpiresAt: refreshPayload.ExpiresAt,
 		User:                  user,
 	}, nil
 }
 
-func generateAccessToken(user *domain.User, config *config.Configuration, tokenService port.TokenService) (string, *auth.Payload, error) {
-	return tokenService.GenerateToken(
-		uuid.Nil,
-		user.Username,
-		user.Role,
-		config.Auth.TokenDuration,
-	)
+func generateAccessToken(user *domain.User, cfg *config.Configuration, ts port.TokenService) (string, *auth.Payload, error) {
+	return ts.GenerateToken(uuid.Nil, user.Username, user.RoleCodes(), cfg.Auth.TokenDuration)
 }
 
-func generateRefreshToken(user *domain.User, config *config.Configuration, tokenService port.TokenService) (string, *auth.Payload, error) {
-	return tokenService.GenerateToken(
-		uuid.Nil,
-		user.Username,
-		user.Role,
-		config.Auth.RefreshTokenDuration,
-	)
+func generateRefreshToken(user *domain.User, cfg *config.Configuration, ts port.TokenService) (string, *auth.Payload, error) {
+	return ts.GenerateToken(uuid.Nil, user.Username, user.RoleCodes(), cfg.Auth.RefreshTokenDuration)
 }

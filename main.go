@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/google"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth/google"
 	"github.com/brmcode/user-auth-service/internal/adapter/grpc"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler"
 	"github.com/brmcode/user-auth-service/internal/adapter/middleware"
@@ -52,10 +52,11 @@ func main() {
 	defer cache.Close()
 
 	userRepo := repository.NewUserRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	oauthAccountRepo := repository.NewOauthAccountRepository(db)
 
-	userServ := service.NewUserService(userRepo, cache, cfg)
+	userServ := service.NewUserService(userRepo, roleRepo, cache, cfg)
 	if cfg.Auth.TokenType == "paseto" {
 
 	}
@@ -63,7 +64,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
-	authServ := service.NewAuthenticationService(cfg, userRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
+	authServ := service.NewAuthenticationService(cfg, userRepo, roleRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
 	idTokenVerifier := google.NewIDTokenVerifier(cfg.OAuth.GoogleClientID)
 
 	validator := validator.NewValidator()
@@ -73,7 +74,7 @@ func main() {
 
 	middleware.Set(tokenServ, db)
 
-	userServer := grpc.NewUserServer(userRepo, cache, cfg)
+	userServer := grpc.NewUserServer(userRepo, roleRepo, cache, cfg)
 	authServer := grpc.NewAuthServer(cfg, userRepo, sessionRepo, tokenServ)
 
 	listener, err := net.Listen("tcp", ":"+cfg.Grpc.Port)

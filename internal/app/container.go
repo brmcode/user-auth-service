@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/brmcode/user-auth-service/internal/adapter/google"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth/google"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
@@ -12,6 +12,7 @@ type Container struct {
 	DB               *database.DB
 	Cache            port.CacheRepository
 	UserRepo         port.UserRepository
+	RoleRepo         port.RoleRepository
 	SessionRepo      port.SessionRepository
 	OauthAccountRepo port.OauthAccountRepository
 	UserService      port.UserService

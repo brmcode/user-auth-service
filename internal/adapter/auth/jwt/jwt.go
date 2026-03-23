@@ -3,7 +3,6 @@ package jwt
 import (
 	"errors"
 	"fmt"
-
 	"time"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/auth"
@@ -21,12 +20,11 @@ type JWTService struct {
 }
 
 // GenerateToken implements port.TokenService.
-func (j *JWTService) GenerateToken(tokenID uuid.UUID, username string, role string, duration time.Duration) (string, *auth.Payload, error) {
-	payload, err := auth.NewPayload(tokenID, username, role, duration)
+func (j *JWTService) GenerateToken(tokenID uuid.UUID, username string, roles []string, duration time.Duration) (string, *auth.Payload, error) {
+	payload, err := auth.NewPayload(tokenID, username, roles, duration)
 	if err != nil {
-		return "", payload, err
+		return "", nil, err
 	}
-
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
 	token, err := jwtToken.SignedString(j.secretKey)
 	return token, payload, err

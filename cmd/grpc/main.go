@@ -20,7 +20,7 @@ func main() {
 	}
 	defer c.Close()
 
-	userServer := grpc.NewUserServer(c.UserRepo, c.Cache, c.Cfg)
+	userServer := grpc.NewUserServer(c.UserRepo, c.RoleRepo, c.Cache, c.Cfg)
 	authServer := grpc.NewAuthServer(c.Cfg, c.UserRepo, c.SessionRepo, c.TokenService)
 
 	listener, err := net.Listen("tcp", ":"+c.Cfg.Grpc.Port)

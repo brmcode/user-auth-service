@@ -8,6 +8,11 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+var validRoleCodes = map[string]struct{}{
+	"USER":  {},
+	"ADMIN": {},
+}
+
 func RegisterValidation(v *validator.Validate) {
 
 	// Register custom validation tag "hexlower"
@@ -44,5 +49,30 @@ func RegisterValidation(v *validator.Validate) {
 			}
 		}
 		return false
+	})
+
+	// Register custom validation tag "role"
+	v.RegisterValidation("role", func(fl validator.FieldLevel) bool {
+		_, ok := validRoleCodes[fl.Field().String()]
+		return ok
+	})
+	// Register custom validation tag "roles"
+	v.RegisterValidation("roles", func(fl validator.FieldLevel) bool {
+		field := fl.Field()
+		if field.Kind().String() != "slice" || field.Len() == 0 {
+			return false
+		}
+		seen := make(map[string]struct{}, field.Len())
+		for i := 0; i < field.Len(); i++ {
+			code := field.Index(i).String()
+			if _, ok := validRoleCodes[code]; !ok {
+				return false
+			}
+			if _, dup := seen[code]; dup {
+				return false
+			}
+			seen[code] = struct{}{}
+		}
+		return true
 	})
 }

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/brmcode/user-auth-service/internal/adapter/google"
+	"github.com/brmcode/user-auth-service/internal/adapter/auth/google"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database/repository"
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/redis"
@@ -28,6 +28,7 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
+	// Migrate tables and seed default roles (USER, ADMIN).
 	if err := db.Migrate(); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %v", err)
 	}
@@ -39,6 +40,7 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 
 	// repositories
 	userRepo := repository.NewUserRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	oauthAccountRepo := repository.NewOauthAccountRepository(db)
 
@@ -47,8 +49,17 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 	if err != nil {
 		log.Fatalf("failed to init token service: %v", err)
 	}
-	userServ := service.NewUserService(userRepo, cache, cfg)
-	authServ := service.NewAuthenticationService(cfg, userRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
+
+	userServ := service.NewUserService(userRepo, roleRepo, cache, cfg)
+	authServ := service.NewAuthenticationService(
+		cfg,
+		userRepo,
+		roleRepo,
+		sessionRepo,
+		oauthAccountRepo,
+		tokenServ,
+		cache,
+	)
 
 	idTokenVerifier := google.NewIDTokenVerifier(cfg.OAuth.GoogleClientID)
 
@@ -57,6 +68,7 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 		DB:               db,
 		Cache:            cache,
 		UserRepo:         userRepo,
+		RoleRepo:         roleRepo,
 		SessionRepo:      sessionRepo,
 		OauthAccountRepo: oauthAccountRepo,
 		UserService:      userServ,

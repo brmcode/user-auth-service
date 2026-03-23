@@ -15,7 +15,7 @@ var (
 type Payload struct {
 	ID        uuid.UUID  `json:"id"`
 	Username  string     `json:"username"`
-	Role      string     `json:"role"`
+	Roles     []string   `json:"roles"`
 	IssuedAt  time.Time  `json:"issued_at"`
 	ExpiresAt time.Time  `json:"expires_at"`
 	NotBefore *time.Time `json:"not_before,omitempty"`
@@ -24,7 +24,22 @@ type Payload struct {
 	Audience  []string   `json:"audience,omitempty"`
 }
 
-// Valid checks if the token is expired or not yet valid (nbf).
+func (payload *Payload) HasRole(role string) bool {
+	for _, r := range payload.Roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+func (payload *Payload) PrimaryRole() string {
+	if len(payload.Roles) == 0 {
+		return "USER"
+	}
+	return payload.Roles[0]
+}
+
 func (payload *Payload) Valid() error {
 	now := time.Now()
 	if payload.NotBefore != nil && now.Before(*payload.NotBefore) {
@@ -51,19 +66,13 @@ func (payload *Payload) GetNotBefore() (*jwt.NumericDate, error) {
 	return jwt.NewNumericDate(*payload.NotBefore), nil
 }
 
-func (payload *Payload) GetIssuer() (string, error) {
-	return payload.Issuer, nil
-}
-
-func (payload *Payload) GetSubject() (string, error) {
-	return payload.Subject, nil
-}
-
+func (payload *Payload) GetIssuer() (string, error)  { return payload.Issuer, nil }
+func (payload *Payload) GetSubject() (string, error) { return payload.Subject, nil }
 func (payload *Payload) GetAudience() (jwt.ClaimStrings, error) {
 	return jwt.ClaimStrings(payload.Audience), nil
 }
 
-func NewPayload(tokenID uuid.UUID, username string, role string, duration time.Duration) (*Payload, error) {
+func NewPayload(tokenID uuid.UUID, username string, roles []string, duration time.Duration) (*Payload, error) {
 	if tokenID == uuid.Nil {
 		var err error
 		tokenID, err = uuid.NewRandom()
@@ -73,13 +82,11 @@ func NewPayload(tokenID uuid.UUID, username string, role string, duration time.D
 	}
 
 	now := time.Now()
-	payload := &Payload{
+	return &Payload{
 		ID:        tokenID,
 		Username:  username,
-		Role:      role,
+		Roles:     roles,
 		IssuedAt:  now,
 		ExpiresAt: now.Add(duration),
-	}
-
-	return payload, nil
+	}, nil
 }

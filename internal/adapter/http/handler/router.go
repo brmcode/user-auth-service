@@ -27,7 +27,6 @@ func NewRouter(
 	userHandler *UserHandler,
 	authHandler *AuthHandler,
 	oauthHandler *OAuthHandler,
-
 ) (*Router, error) {
 	router := gin.Default()
 	router.Use(mw.RateLimitMiddleware())
@@ -45,12 +44,14 @@ func NewRouter(
 			auth.POST("/refresh_token", authHandler.RefreshToken)
 			auth.POST("/logout", authHandler.Logout)
 		}
+
 		oauth := api.Group("/oauth")
 		{
 			oauth.GET("/:provider", oauthHandler.Begin)
 			oauth.GET("/:provider/callback", oauthHandler.Callback)
 			oauth.POST("/mobile/google", oauthHandler.GoogleAuthMobile)
 		}
+
 		user := api.Group("/users")
 		{
 			user.POST("", mw.Authorized(domain.ADMIN_ROLE), userHandler.CreateUser)
