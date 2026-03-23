@@ -10,11 +10,11 @@ http:
     type: json
     data: |-
       {
-        "username": "jpmqwgyi",
+        "username": "username",
         "first_name": "{{$randomFirstName}}",
         "last_name": "{{$randomLastName}}",
         "image_url":"https://picsum.photos/200",
-        "role": "USER"
+        "roles": ["USER"]
       }
   auth: inherit
 
