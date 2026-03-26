@@ -1,13 +1,13 @@
 package repository
 
 import (
-	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
+	"gorm.io/gorm"
 )
 
 type oauthAccountRepo struct {
-	db *database.DB
+	db *gorm.DB
 }
 
 // Create implements port.OauthAccountRepository.
@@ -44,6 +44,6 @@ func (o *oauthAccountRepo) GetByUsername(username string) ([]domain.OauthAccount
 }
 
 // NewOauthAccountRepository creates a new oauth account repository instance
-func NewOauthAccountRepository(db *database.DB) port.OauthAccountRepository {
+func NewOauthAccountRepository(db *gorm.DB) port.OauthAccountRepository {
 	return &oauthAccountRepo{db: db}
 }

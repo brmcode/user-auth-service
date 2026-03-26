@@ -1,41 +1,36 @@
 package repository
 
 import (
-	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"gorm.io/gorm"
 )
 
 type userRepo struct {
-	db *database.DB
+	db *gorm.DB
 }
 
 // Create implements [port.UserRepository].
 func (u *userRepo) Create(user *domain.User) (*domain.User, error) {
-	err := u.db.DB.Transaction(func(tx *gorm.DB) error {
-		roles := user.Roles
-		user.Roles = nil
+	roles := user.Roles
+	user.Roles = nil
+	defer func() {
+		user.Roles = roles
+	}()
 
-		if err := tx.Create(user).Error; err != nil {
-			return err
-		}
-
-		if len(roles) > 0 {
-			if err := tx.Model(user).
-				Association("Roles").
-				Replace(roles); err != nil {
-				return err
-			}
-			user.Roles = roles
-		}
-		return nil
-	})
-	if err != nil {
+	if err := u.db.Create(user).Error; err != nil {
 		return nil, err
 	}
-	return user, nil
 
+	if len(roles) > 0 {
+		if err := u.db.Model(user).
+			Association("Roles").
+			Replace(roles); err != nil {
+			return nil, err
+		}
+	}
+
+	return user, nil
 }
 
 // Get implements [port.UserRepository].
@@ -85,14 +80,10 @@ func (u *userRepo) GetByEmailUnscoped(email string) (*domain.User, error) {
 
 // Update implements [port.UserRepository].
 func (u *userRepo) Update(user *domain.User) (*domain.User, error) {
-	err := u.db.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(user).Error; err != nil {
-			return err
-		}
-		return tx.Model(user).Association("Roles").Replace(user.Roles)
-
-	})
-	if err != nil {
+	if err := u.db.Save(user).Error; err != nil {
+		return nil, err
+	}
+	if err := u.db.Model(user).Association("Roles").Replace(user.Roles); err != nil {
 		return nil, err
 	}
 
@@ -105,6 +96,6 @@ func (u *userRepo) Delete(user *domain.User) error {
 }
 
 // NewUserRepository creates a new user repository instance
-func NewUserRepository(db *database.DB) port.UserRepository {
+func NewUserRepository(db *gorm.DB) port.UserRepository {
 	return &userRepo{db: db}
 }

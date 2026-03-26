@@ -23,6 +23,7 @@ import (
 
 type authService struct {
 	config           *config.Configuration
+	uow              port.UnitOfWork
 	userRepo         port.UserRepository
 	roleRepo         port.RoleRepository
 	sessionRepo      port.SessionRepository
@@ -32,7 +33,11 @@ type authService struct {
 }
 
 func (a *authService) defaultUserRole() ([]domain.Role, error) {
-	r, err := a.roleRepo.GetByCode(domain.USER_ROLE)
+	return a.defaultUserRoleWithRepo(a.roleRepo)
+}
+
+func (a *authService) defaultUserRoleWithRepo(roleRepo port.RoleRepository) ([]domain.Role, error) {
+	r, err := roleRepo.GetByCode(domain.USER_ROLE)
 	if err != nil {
 		return nil, fmt.Errorf("could not load default role: %w", err)
 	}
@@ -52,15 +57,24 @@ func (a *authService) cacheUser(ctx *gin.Context, user *domain.User) error {
 }
 
 func (a *authService) loginSuccess(ctx *gin.Context, user *domain.User) *response.LoginResult {
-	token, err := util.IssueSessionAndTokens(ctx, user, a.config, a.tokenService, a.sessionRepo)
+	result, _ := a.loginSuccessWithSessionRepo(ctx, user, a.sessionRepo)
+	return result
+}
+
+func (a *authService) loginSuccessWithSessionRepo(ctx *gin.Context, user *domain.User, sessionRepo port.SessionRepository) (*response.LoginResult, error) {
+	token, err := util.IssueSessionAndTokens(ctx, user, a.config, a.tokenService, sessionRepo)
 	if err != nil {
-		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()}), err
 	}
-	return response.Login(true, 200, "login successful", false, token, nil)
+	return response.Login(true, 200, "login successful", false, token, nil), nil
 }
 
 func (a *authService) linkOAuthAccount(username, provider, providerUserID, email string) error {
-	_, err := a.oauthAccountRepo.Create(&domain.OauthAccount{
+	return a.linkOAuthAccountWithRepo(a.oauthAccountRepo, username, provider, providerUserID, email)
+}
+
+func (a *authService) linkOAuthAccountWithRepo(oauthRepo port.OauthAccountRepository, username, provider, providerUserID, email string) error {
+	_, err := oauthRepo.Create(&domain.OauthAccount{
 		ID:             uuid.New(),
 		Username:       username,
 		Provider:       provider,
@@ -123,22 +137,27 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 		return response.NewUser(false, 500, "failed to hash password", nil, &[]string{err.Error()})
 	}
 
-	defaultRoles, err := a.defaultUserRole()
-	if err != nil {
-		return response.NewUser(false, 500, err.Error(), nil, &[]string{err.Error()})
-	}
+	var createdUser *domain.User
 
-	user := &domain.User{
-		Username:       util.RandomUsername(),
-		FirstName:      req.FirstName,
-		LastName:       req.LastName,
-		Email:          req.Email,
-		ImageURL:       req.ImageURL,
-		HashedPassword: hashedPassword,
-		Roles:          defaultRoles,
-	}
+	err = a.uow.Do(func(uow port.UnitOfWork) error {
+		defaultRoles, err := a.defaultUserRoleWithRepo(uow.RoleRepo())
+		if err != nil {
+			return err
+		}
 
-	createdUser, err := a.userRepo.Create(user)
+		user := &domain.User{
+			Username:       util.RandomUsername(),
+			FirstName:      req.FirstName,
+			LastName:       req.LastName,
+			Email:          req.Email,
+			ImageURL:       req.ImageURL,
+			HashedPassword: hashedPassword,
+			Roles:          defaultRoles,
+		}
+
+		createdUser, err = uow.UserRepo().Create(user)
+		return err
+	})
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -267,131 +286,192 @@ func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) 
 }
 
 func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) *response.LoginResult {
-	account, err := a.oauthAccountRepo.GetByProvider(provider, gUser.UserID)
-	if err == nil {
-		user, err := a.userRepo.Get(account.Username)
-		if err != nil {
-			return response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
-		}
-		return a.loginSuccess(ctx, user)
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
-	}
+	var (
+		authUser    *domain.User
+		isNew       bool
+		shouldCache bool
+		result      *response.LoginResult
+	)
 
-	user, err := a.userRepo.GetByEmailUnscoped(gUser.Email)
-	if err == nil {
-		if user.DeletedAt.Valid {
-			user.DeletedAt = gorm.DeletedAt{}
-			if _, err := a.userRepo.Update(user); err != nil {
-				return response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
+	err := a.uow.Do(func(uow port.UnitOfWork) error {
+		account, err := uow.OauthAccountRepo().GetByProvider(provider, gUser.UserID)
+		if err == nil {
+			authUser, err = uow.UserRepo().Get(account.Username)
+			if err != nil {
+				result = response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
+				return err
 			}
+			result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
+			return err
 		}
-		if err := a.linkOAuthAccount(user.Username, provider, gUser.UserID, gUser.Email); err != nil {
-			return response.Login(false, 500, "failed to link oauth account", false, nil, &[]string{err.Error()})
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			result = response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
+			return err
 		}
-		if err := a.cacheUser(ctx, user); err != nil {
-			log.Printf("[OAuthLogin] cache error for %s: %v", user.Username, err)
-		}
-		return a.loginSuccess(ctx, user)
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return response.Login(false, 500, "failed to look up user", false, nil, &[]string{err.Error()})
-	}
 
-	defaultRoles, err := a.defaultUserRole()
+		authUser, err = uow.UserRepo().GetByEmailUnscoped(gUser.Email)
+		if err == nil {
+			if authUser.DeletedAt.Valid {
+				authUser.DeletedAt = gorm.DeletedAt{}
+				if _, err := uow.UserRepo().Update(authUser); err != nil {
+					result = response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
+					return err
+				}
+			}
+			if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, provider, gUser.UserID, gUser.Email); err != nil {
+				result = response.Login(false, 500, "failed to link oauth account", false, nil, &[]string{err.Error()})
+				return err
+			}
+			shouldCache = true
+			result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
+			return err
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			result = response.Login(false, 500, "failed to look up user", false, nil, &[]string{err.Error()})
+			return err
+		}
+
+		defaultRoles, err := a.defaultUserRoleWithRepo(uow.RoleRepo())
+		if err != nil {
+			result = response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+			return err
+		}
+
+		newUser := &domain.User{
+			Username:  util.RandomUsername(),
+			FirstName: gUser.FirstName,
+			LastName:  gUser.LastName,
+			Email:     gUser.Email,
+			ImageURL:  gUser.AvatarURL,
+			Roles:     defaultRoles,
+		}
+		authUser, err = uow.UserRepo().Create(newUser)
+		if err != nil {
+			result = response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
+			return err
+		}
+		if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, provider, gUser.UserID, gUser.Email); err != nil {
+			result = response.Login(false, 500, "failed to link oauth account", false, nil, &[]string{err.Error()})
+			return err
+		}
+
+		isNew = true
+		shouldCache = true
+		result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
+		return err
+	})
 	if err != nil {
-		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+		if result != nil {
+			return result
+		}
+		return response.Login(false, 500, "oauth login failed", false, nil, &[]string{err.Error()})
 	}
 
-	newUser := &domain.User{
-		Username:  util.RandomUsername(),
-		FirstName: gUser.FirstName,
-		LastName:  gUser.LastName,
-		Email:     gUser.Email,
-		ImageURL:  gUser.AvatarURL,
-		Roles:     defaultRoles,
-	}
-	created, err := a.userRepo.Create(newUser)
-	if err != nil {
-		return response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
-	}
-	if err := a.linkOAuthAccount(created.Username, provider, gUser.UserID, gUser.Email); err != nil {
-		return response.Login(false, 500, "failed to link oauth account", false, nil, &[]string{err.Error()})
-	}
-	if err := a.cacheUser(ctx, created); err != nil {
-		log.Printf("[OAuthLogin] cache error for %s: %v", created.Username, err)
+	if shouldCache {
+		if err := a.cacheUser(ctx, authUser); err != nil {
+			log.Printf("[OAuthLogin] cache error for %s: %v", authUser.Username, err)
+		}
 	}
 
-	result := a.loginSuccess(ctx, created)
-	result.NewUser = true
+	result.NewUser = isNew
 	return result
 }
 
 func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload) *response.LoginResult {
-	account, err := a.oauthAccountRepo.GetByProvider("google", payload.Subject)
-	if err == nil {
-		user, err := a.userRepo.Get(account.Username)
-		if err != nil {
-			return response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
-		}
-		return a.loginSuccess(ctx, user)
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
-	}
+	var (
+		authUser    *domain.User
+		isNew       bool
+		shouldCache bool
+		result      *response.LoginResult
+	)
 
-	user, err := a.userRepo.GetByEmailUnscoped(payload.Email)
-	if err == nil {
-		if user.DeletedAt.Valid {
-			user.DeletedAt = gorm.DeletedAt{}
-			if _, err := a.userRepo.Update(user); err != nil {
-				return response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
+	err := a.uow.Do(func(uow port.UnitOfWork) error {
+		account, err := uow.OauthAccountRepo().GetByProvider("google", payload.Subject)
+		if err == nil {
+			authUser, err = uow.UserRepo().Get(account.Username)
+			if err != nil {
+				result = response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
+				return err
 			}
+			result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
+			return err
 		}
-		if err := a.linkOAuthAccount(user.Username, "google", payload.Subject, payload.Email); err != nil {
-			return response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			result = response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
+			return err
 		}
-		if err := a.cacheUser(ctx, user); err != nil {
-			log.Printf("[GoogleAuthMobile] cache error for %s: %v", user.Username, err)
-		}
-		return a.loginSuccess(ctx, user)
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return response.Login(false, 500, "failed to look up user", false, nil, &[]string{err.Error()})
-	}
 
-	defaultRoles, err := a.defaultUserRole()
+		authUser, err = uow.UserRepo().GetByEmailUnscoped(payload.Email)
+		if err == nil {
+			if authUser.DeletedAt.Valid {
+				authUser.DeletedAt = gorm.DeletedAt{}
+				if _, err := uow.UserRepo().Update(authUser); err != nil {
+					result = response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
+					return err
+				}
+			}
+			if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, "google", payload.Subject, payload.Email); err != nil {
+				result = response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
+				return err
+			}
+			shouldCache = true
+			result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
+			return err
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			result = response.Login(false, 500, "failed to look up user", false, nil, &[]string{err.Error()})
+			return err
+		}
+
+		defaultRoles, err := a.defaultUserRoleWithRepo(uow.RoleRepo())
+		if err != nil {
+			result = response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+			return err
+		}
+
+		newUser := &domain.User{
+			Username:  util.RandomUsername(),
+			FirstName: payload.FirstName,
+			LastName:  payload.LastName,
+			Email:     payload.Email,
+			ImageURL:  payload.AvatarURL,
+			Roles:     defaultRoles,
+		}
+		authUser, err = uow.UserRepo().Create(newUser)
+		if err != nil {
+			result = response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
+			return err
+		}
+		if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, "google", payload.Subject, payload.Email); err != nil {
+			result = response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
+			return err
+		}
+
+		isNew = true
+		shouldCache = true
+		result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
+		return err
+	})
 	if err != nil {
-		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+		if result != nil {
+			return result
+		}
+		return response.Login(false, 500, "google auth login failed", false, nil, &[]string{err.Error()})
 	}
 
-	newUser := &domain.User{
-		Username:  util.RandomUsername(),
-		FirstName: payload.FirstName,
-		LastName:  payload.LastName,
-		Email:     payload.Email,
-		ImageURL:  payload.AvatarURL,
-		Roles:     defaultRoles,
-	}
-	created, err := a.userRepo.Create(newUser)
-	if err != nil {
-		return response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
-	}
-	if err := a.linkOAuthAccount(created.Username, "google", payload.Subject, payload.Email); err != nil {
-		return response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
-	}
-	if err := a.cacheUser(ctx, created); err != nil {
-		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+	if shouldCache {
+		if err := a.cacheUser(ctx, authUser); err != nil {
+			log.Printf("[GoogleAuthMobile] cache error for %s: %v", authUser.Username, err)
+		}
 	}
 
-	result := a.loginSuccess(ctx, created)
-	result.NewUser = true
+	result.NewUser = isNew
 	return result
 }
 
 func NewAuthenticationService(
 	cfg *config.Configuration,
+	uow port.UnitOfWork,
 	userRepo port.UserRepository,
 	roleRepo port.RoleRepository,
 	sessionRepo port.SessionRepository,
@@ -401,6 +481,7 @@ func NewAuthenticationService(
 ) port.AuthenticationService {
 	return &authService{
 		config:           cfg,
+		uow:              uow,
 		userRepo:         userRepo,
 		roleRepo:         roleRepo,
 		sessionRepo:      sessionRepo,

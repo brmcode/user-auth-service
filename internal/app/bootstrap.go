@@ -39,10 +39,11 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 	}
 
 	// repositories
-	userRepo := repository.NewUserRepository(db)
-	roleRepo := repository.NewRoleRepository(db)
-	sessionRepo := repository.NewSessionRepository(db)
-	oauthAccountRepo := repository.NewOauthAccountRepository(db)
+	userRepo := repository.NewUserRepository(db.DB)
+	roleRepo := repository.NewRoleRepository(db.DB)
+	sessionRepo := repository.NewSessionRepository(db.DB)
+	oauthAccountRepo := repository.NewOauthAccountRepository(db.DB)
+	uow := database.NewUnitOfWork(db.DB)
 
 	// services
 	tokenServ, err := util.NewTokenService(cfg.Auth)
@@ -50,9 +51,10 @@ func Bootstrap(ctx context.Context) (*Container, error) {
 		log.Fatalf("failed to init token service: %v", err)
 	}
 
-	userServ := service.NewUserService(userRepo, roleRepo, cache, cfg)
+	userServ := service.NewUserService(userRepo, roleRepo, uow, cache, cfg)
 	authServ := service.NewAuthenticationService(
 		cfg,
+		uow,
 		userRepo,
 		roleRepo,
 		sessionRepo,

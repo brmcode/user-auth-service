@@ -1,13 +1,13 @@
 package repository
 
 import (
-	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
+	"gorm.io/gorm"
 )
 
 type roleRepo struct {
-	db *database.DB
+	db *gorm.DB
 }
 
 // GetByCode implements [port.RoleRepository].
@@ -38,6 +38,6 @@ func (r *roleRepo) List() ([]domain.Role, error) {
 }
 
 // NewRoleRepository creates a new role repository instance.
-func NewRoleRepository(db *database.DB) port.RoleRepository {
+func NewRoleRepository(db *gorm.DB) port.RoleRepository {
 	return &roleRepo{db: db}
 }

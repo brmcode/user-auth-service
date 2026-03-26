@@ -51,12 +51,13 @@ func main() {
 
 	defer cache.Close()
 
-	userRepo := repository.NewUserRepository(db)
-	roleRepo := repository.NewRoleRepository(db)
-	sessionRepo := repository.NewSessionRepository(db)
-	oauthAccountRepo := repository.NewOauthAccountRepository(db)
+	userRepo := repository.NewUserRepository(db.DB)
+	roleRepo := repository.NewRoleRepository(db.DB)
+	sessionRepo := repository.NewSessionRepository(db.DB)
+	oauthAccountRepo := repository.NewOauthAccountRepository(db.DB)
+	uow := database.NewUnitOfWork(db.DB)
 
-	userServ := service.NewUserService(userRepo, roleRepo, cache, cfg)
+	userServ := service.NewUserService(userRepo, roleRepo, uow, cache, cfg)
 	if cfg.Auth.TokenType == "paseto" {
 
 	}
@@ -64,7 +65,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize token service: %v", err)
 	}
-	authServ := service.NewAuthenticationService(cfg, userRepo, roleRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
+	authServ := service.NewAuthenticationService(cfg, uow, userRepo, roleRepo, sessionRepo, oauthAccountRepo, tokenServ, cache)
 	idTokenVerifier := google.NewIDTokenVerifier(cfg.OAuth.GoogleClientID)
 
 	validator := validator.NewValidator()
