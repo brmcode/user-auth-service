@@ -1,0 +1,23 @@
+info:
+  name: upload
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{url}}/api/media/upload"
+  body:
+    type: multipart-form
+    data:
+      - name: file
+        type: file
+        value:
+          - C:\Users\baram\Pictures\Screenshots\Screenshot 2026-02-11 183622.png
+        contentType: image/png
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
