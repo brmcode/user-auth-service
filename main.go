@@ -72,6 +72,7 @@ func main() {
 	userCtrl := handler.NewUserHandler(validator, userServ)
 	authCtrl := handler.NewAuthHandler(validator, userServ, authServ)
 	oauthCtrl := handler.NewOAuthHandler(authServ, idTokenVerifier)
+	mediaCtrl := handler.NewMediaHandler("uploads")
 
 	middleware.Set(tokenServ, db)
 
@@ -92,6 +93,7 @@ func main() {
 		userCtrl,
 		authCtrl,
 		oauthCtrl,
+		mediaCtrl,
 	)
 	if err != nil {
 		log.Fatal(err)

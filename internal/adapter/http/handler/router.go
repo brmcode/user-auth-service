@@ -27,6 +27,7 @@ func NewRouter(
 	userHandler *UserHandler,
 	authHandler *AuthHandler,
 	oauthHandler *OAuthHandler,
+	mediaHandler *MediaHandler,
 ) (*Router, error) {
 	router := gin.Default()
 	router.Use(mw.RateLimitMiddleware())
@@ -50,6 +51,12 @@ func NewRouter(
 			oauth.GET("/:provider", oauthHandler.Begin)
 			oauth.GET("/:provider/callback", oauthHandler.Callback)
 			oauth.POST("/mobile/google", oauthHandler.GoogleAuthMobile)
+		}
+
+		media := api.Group("/media")
+		{
+			media.POST("/upload", mediaHandler.UploadFile)
+			media.GET("/image/:filename", mediaHandler.GetImage)
 		}
 
 		user := api.Group("/users")

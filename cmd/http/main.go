@@ -27,6 +27,7 @@ func main() {
 	userCtrl := handler.NewUserHandler(validator, c.UserService)
 	authCtrl := handler.NewAuthHandler(validator, c.UserService, c.AuthService)
 	oauthCtrl := handler.NewOAuthHandler(c.AuthService, c.IDTokenVerifier)
+	mediaCtrl := handler.NewMediaHandler("uploads")
 
 	router, err := handler.NewRouter(
 		c.Cfg,
@@ -34,6 +35,7 @@ func main() {
 		userCtrl,
 		authCtrl,
 		oauthCtrl,
+		mediaCtrl,
 	)
 	if err != nil {
 		log.Fatal(err)
