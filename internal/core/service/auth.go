@@ -267,7 +267,6 @@ func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) 
 }
 
 func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.User) *response.LoginResult {
-	// Case 1: existing OAuth account.
 	account, err := a.oauthAccountRepo.GetByProvider(provider, gUser.UserID)
 	if err == nil {
 		user, err := a.userRepo.Get(account.Username)
@@ -280,7 +279,6 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 		return response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
 	}
 
-	// Case 2: email matches an existing user → link the new OAuth account.
 	user, err := a.userRepo.GetByEmailUnscoped(gUser.Email)
 	if err == nil {
 		if user.DeletedAt.Valid {
@@ -301,7 +299,6 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 		return response.Login(false, 500, "failed to look up user", false, nil, &[]string{err.Error()})
 	}
 
-	// Case 3: brand new user.
 	defaultRoles, err := a.defaultUserRole()
 	if err != nil {
 		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
@@ -331,8 +328,8 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 	return result
 }
 
-func (a *authService) GoogleAuthMobile(ctx *gin.Context, claims *google.Payload) *response.LoginResult {
-	account, err := a.oauthAccountRepo.GetByProvider("google", claims.Subject)
+func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload) *response.LoginResult {
+	account, err := a.oauthAccountRepo.GetByProvider("google", payload.Subject)
 	if err == nil {
 		user, err := a.userRepo.Get(account.Username)
 		if err != nil {
@@ -344,7 +341,7 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, claims *google.Payload)
 		return response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
 	}
 
-	user, err := a.userRepo.GetByEmailUnscoped(claims.Email)
+	user, err := a.userRepo.GetByEmailUnscoped(payload.Email)
 	if err == nil {
 		if user.DeletedAt.Valid {
 			user.DeletedAt = gorm.DeletedAt{}
@@ -352,7 +349,7 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, claims *google.Payload)
 				return response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
 			}
 		}
-		if err := a.linkOAuthAccount(user.Username, "google", claims.Subject, claims.Email); err != nil {
+		if err := a.linkOAuthAccount(user.Username, "google", payload.Subject, payload.Email); err != nil {
 			return response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
 		}
 		if err := a.cacheUser(ctx, user); err != nil {
@@ -371,17 +368,17 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, claims *google.Payload)
 
 	newUser := &domain.User{
 		Username:  util.RandomUsername(),
-		FirstName: claims.FirstName,
-		LastName:  claims.LastName,
-		Email:     claims.Email,
-		ImageURL:  claims.AvatarURL,
+		FirstName: payload.FirstName,
+		LastName:  payload.LastName,
+		Email:     payload.Email,
+		ImageURL:  payload.AvatarURL,
 		Roles:     defaultRoles,
 	}
 	created, err := a.userRepo.Create(newUser)
 	if err != nil {
 		return response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
 	}
-	if err := a.linkOAuthAccount(created.Username, "google", claims.Subject, claims.Email); err != nil {
+	if err := a.linkOAuthAccount(created.Username, "google", payload.Subject, payload.Email); err != nil {
 		return response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
 	}
 	if err := a.cacheUser(ctx, created); err != nil {

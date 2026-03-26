@@ -10,7 +10,7 @@ http:
     type: json
     data: |-
       {
-          "email": "{{$randomExampleEmail}}",
+          "email": "{{$randomEmail}}",
           "first_name": "{{$randomFirstName}}",
           "last_name": "{{$randomLastName}}",
           "image_url":"https://picsum.photos/200",
