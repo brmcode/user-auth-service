@@ -19,12 +19,17 @@ import (
 type userServ struct {
 	userRepo port.UserRepository
 	roleRepo port.RoleRepository
+	uow      port.UnitOfWork
 	cache    port.CacheRepository
 	config   *config.Configuration
 }
 
 func (u *userServ) resolveRoles(codes []string) ([]domain.Role, *response.User) {
-	roles, err := u.roleRepo.GetByCodes(codes)
+	return u.resolveRolesWithRepo(u.roleRepo, codes)
+}
+
+func (u *userServ) resolveRolesWithRepo(roleRepo port.RoleRepository, codes []string) ([]domain.Role, *response.User) {
+	roles, err := roleRepo.GetByCodes(codes)
 	if err != nil {
 		return nil, response.NewUser(false, http.StatusInternalServerError, "failed to load roles", nil, &[]string{err.Error()})
 	}
@@ -69,23 +74,36 @@ func (u *userServ) CreateUser(ctx *gin.Context, req request.CreateUserRequest) *
 		return response.NewUser(false, http.StatusInternalServerError, "failed to hash password", nil, &[]string{err.Error()})
 	}
 
-	roles, errResp := u.resolveRoles(req.Roles)
-	if errResp != nil {
-		return errResp
-	}
+	var (
+		created *domain.User
+		result  *response.User
+	)
+	abortErr := errors.New("abort create user transaction")
 
-	user := &domain.User{
-		Username:       util.RandomUsername(),
-		FirstName:      req.FirstName,
-		LastName:       req.LastName,
-		Email:          req.Email,
-		ImageURL:       req.ImageURL,
-		HashedPassword: hashedPassword,
-		Roles:          roles,
-	}
+	err = u.uow.Do(func(uow port.UnitOfWork) error {
+		roles, errResp := u.resolveRolesWithRepo(uow.RoleRepo(), req.Roles)
+		if errResp != nil {
+			result = errResp
+			return abortErr
+		}
 
-	created, err := u.userRepo.Create(user)
+		user := &domain.User{
+			Username:       util.RandomUsername(),
+			FirstName:      req.FirstName,
+			LastName:       req.LastName,
+			Email:          req.Email,
+			ImageURL:       req.ImageURL,
+			HashedPassword: hashedPassword,
+			Roles:          roles,
+		}
+
+		created, err = uow.UserRepo().Create(user)
+		return err
+	})
 	if err != nil {
+		if result != nil {
+			return result
+		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return response.NewUser(false, http.StatusConflict, pgErr.Detail, nil, &[]string{pgErr.Detail})
@@ -131,26 +149,41 @@ func (u *userServ) GetUser(ctx *gin.Context, username string) *response.User {
 }
 
 func (u *userServ) UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) *response.User {
-	user, err := u.userRepo.Get(req.Username)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return response.NewUser(false, http.StatusNotFound, gorm.ErrRecordNotFound.Error(), nil, &[]string{err.Error()})
+	var (
+		updated *domain.User
+		result  *response.User
+	)
+	abortErr := errors.New("abort update user transaction")
+
+	err := u.uow.Do(func(uow port.UnitOfWork) error {
+		user, err := uow.UserRepo().Get(req.Username)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				result = response.NewUser(false, http.StatusNotFound, gorm.ErrRecordNotFound.Error(), nil, &[]string{err.Error()})
+			} else {
+				result = response.NewUser(false, http.StatusInternalServerError, err.Error(), nil, &[]string{err.Error()})
+			}
+			return err
 		}
-		return response.NewUser(false, http.StatusInternalServerError, err.Error(), nil, &[]string{err.Error()})
-	}
 
-	roles, errResp := u.resolveRoles(req.Roles)
-	if errResp != nil {
-		return errResp
-	}
+		roles, errResp := u.resolveRolesWithRepo(uow.RoleRepo(), req.Roles)
+		if errResp != nil {
+			result = errResp
+			return abortErr
+		}
 
-	user.FirstName = req.FirstName
-	user.LastName = req.LastName
-	user.ImageURL = req.ImageURL
-	user.Roles = roles
+		user.FirstName = req.FirstName
+		user.LastName = req.LastName
+		user.ImageURL = req.ImageURL
+		user.Roles = roles
 
-	updated, err := u.userRepo.Update(user)
+		updated, err = uow.UserRepo().Update(user)
+		return err
+	})
 	if err != nil {
+		if result != nil {
+			return result
+		}
 		return response.NewUser(false, http.StatusInternalServerError, "failed to update user", nil, &[]string{err.Error()})
 	}
 
@@ -180,12 +213,14 @@ func (u *userServ) DeleteUser(ctx *gin.Context, username string) *response.User 
 func NewUserService(
 	userRepo port.UserRepository,
 	roleRepo port.RoleRepository,
+	uow port.UnitOfWork,
 	cache port.CacheRepository,
 	cfg *config.Configuration,
 ) port.UserService {
 	return &userServ{
 		userRepo: userRepo,
 		roleRepo: roleRepo,
+		uow:      uow,
 		cache:    cache,
 		config:   cfg,
 	}

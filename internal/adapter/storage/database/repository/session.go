@@ -1,14 +1,14 @@
 package repository
 
 import (
-	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type sessionRepo struct {
-	db *database.DB
+	db *gorm.DB
 }
 
 // BlockAllSessions implements port.SessionRepository.
@@ -60,6 +60,6 @@ func (s *sessionRepo) Get(id uuid.UUID) (*domain.Session, error) {
 }
 
 // NewSessionRepository creates a new session repository instance
-func NewSessionRepository(db *database.DB) port.SessionRepository {
+func NewSessionRepository(db *gorm.DB) port.SessionRepository {
 	return &sessionRepo{db: db}
 }
