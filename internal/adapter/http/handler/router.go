@@ -35,9 +35,11 @@ func NewRouter(
 	router.Use(cors.Default())
 
 	router.GET("", serverRunning)
+	router.Static("/cdn", "./uploads")
 
 	api := router.Group("/api")
 	{
+		api.POST("/uploads/avatar", mediaHandler.UploadAvatar)
 		auth := api.Group("/auth")
 		{
 			auth.POST("/login", authHandler.Login)
@@ -51,12 +53,6 @@ func NewRouter(
 			oauth.GET("/:provider", oauthHandler.Begin)
 			oauth.GET("/:provider/callback", oauthHandler.Callback)
 			oauth.POST("/mobile/google", oauthHandler.GoogleAuthMobile)
-		}
-
-		media := api.Group("/media")
-		{
-			media.POST("/upload", mediaHandler.UploadFile)
-			media.GET("/image/:filename", mediaHandler.GetImage)
 		}
 
 		user := api.Group("/users")

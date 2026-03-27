@@ -131,10 +131,10 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) *response.Log
 	return response.Login(true, 200, "login successful", false, token, nil)
 }
 
-func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *response.User {
+func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *response.UserResult {
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
-		return response.NewUser(false, 500, "failed to hash password", nil, &[]string{err.Error()})
+		return response.User(false, 500, "failed to hash password", nil, &[]string{err.Error()})
 	}
 
 	var createdUser *domain.User
@@ -161,9 +161,9 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return response.NewUser(false, 409, pgErr.Detail, nil, &[]string{pgErr.Detail})
+			return response.User(false, 409, pgErr.Detail, nil, &[]string{pgErr.Detail})
 		}
-		return response.NewUser(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.User(false, 500, err.Error(), nil, &[]string{err.Error()})
 	}
 
 	key := util.GenerateCacheKey("user", createdUser.Username)
@@ -178,7 +178,7 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 		}
 	}
 
-	return response.NewUser(true, 201, "user registered successfully", createdUser, nil)
+	return response.User(true, 201, "user registered successfully", createdUser, nil)
 }
 
 func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.RefreshTokenResult {

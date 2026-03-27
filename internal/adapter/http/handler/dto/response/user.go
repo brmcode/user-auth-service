@@ -2,7 +2,7 @@ package response
 
 import "github.com/brmcode/user-auth-service/internal/core/domain"
 
-type User struct {
+type UserResult struct {
 	Success    bool         `json:"success"`
 	StatusCode int          `json:"status_code"`
 	Message    string       `json:"message"`
@@ -10,7 +10,7 @@ type User struct {
 	Errors     []string     `json:"errors,omitempty"`
 }
 
-type ListUser struct {
+type ListUserResult struct {
 	Success    bool          `json:"success"`
 	StatusCode int           `json:"status_code"`
 	Message    string        `json:"message"`
@@ -18,24 +18,24 @@ type ListUser struct {
 	Errors     []string      `json:"errors,omitempty"`
 }
 
-func NewUser(success bool, statusCode int, message string, data *domain.User, errors *[]string) *User {
+func User(success bool, statusCode int, message string, data *domain.User, errors *[]string) *UserResult {
 	if success {
-		return &User{Success: true, StatusCode: statusCode, Message: message, Data: data}
+		return &UserResult{Success: true, StatusCode: statusCode, Message: message, Data: data}
 	}
 	var errs []string
 	if errors != nil {
 		errs = *errors
 	}
-	return &User{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
+	return &UserResult{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
 }
 
-func NewListUser(success bool, statusCode int, message string, data *[]domain.User, errors *[]string) *ListUser {
+func ListUser(success bool, statusCode int, message string, data *[]domain.User, errors *[]string) *ListUserResult {
 	if success {
-		return &ListUser{Success: true, StatusCode: statusCode, Message: message, Data: *data}
+		return &ListUserResult{Success: true, StatusCode: statusCode, Message: message, Data: *data}
 	}
 	var errs []string
 	if errors != nil {
 		errs = *errors
 	}
-	return &ListUser{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
+	return &ListUserResult{Success: false, StatusCode: statusCode, Message: message, Errors: errs}
 }

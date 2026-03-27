@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{url}}/api/media/image/"
+  url: "{{url}}/cdn/avatars/1774623848879556100.png"
   auth: inherit
 
 settings:

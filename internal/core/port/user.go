@@ -18,8 +18,8 @@ type UserRepository interface {
 }
 
 type UserService interface {
-	CreateUser(ctx *gin.Context, req request.CreateUserRequest) *response.User
-	GetUser(ctx *gin.Context, username string) *response.User
-	UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) *response.User
-	DeleteUser(ctx *gin.Context, username string) *response.User
+	CreateUser(ctx *gin.Context, req request.CreateUserRequest) *response.UserResult
+	GetUser(ctx *gin.Context, username string) *response.UserResult
+	UpdateUser(ctx *gin.Context, req request.UpdateUserRequest) *response.UserResult
+	DeleteUser(ctx *gin.Context, username string) *response.UserResult
 }

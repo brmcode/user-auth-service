@@ -72,7 +72,7 @@ func main() {
 	userCtrl := handler.NewUserHandler(validator, userServ)
 	authCtrl := handler.NewAuthHandler(validator, userServ, authServ)
 	oauthCtrl := handler.NewOAuthHandler(authServ, idTokenVerifier)
-	mediaCtrl := handler.NewMediaHandler("uploads")
+	mediaCtrl := handler.NewMediaHandler("uploads/avatars")
 
 	middleware.Set(tokenServ, db)
 

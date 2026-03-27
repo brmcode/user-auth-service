@@ -23,7 +23,7 @@ func NewMediaHandler(uploadDir string) *MediaHandler {
 	return &MediaHandler{uploadDir: uploadDir}
 }
 
-func (m *MediaHandler) UploadFile(ctx *gin.Context) {
+func (m *MediaHandler) UploadAvatar(ctx *gin.Context) {
 	var req uploadFileRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "file is required"))
@@ -39,29 +39,13 @@ func (m *MediaHandler) UploadFile(ctx *gin.Context) {
 		return
 	}
 
-	url := fmt.Sprintf("/api/media/image/%s", filename)
+	url := fmt.Sprintf("/cdn/avatars/%s", filename)
 	ctx.JSON(http.StatusOK, fileResponse{
 		Success:    true,
 		StatusCode: http.StatusOK,
 		Message:    "file uploaded successfully",
-		URL:        &url,
+		Data:       &url,
 	})
-}
-
-func (m *MediaHandler) GetImage(ctx *gin.Context) {
-	filename := ctx.Param("filename")
-	if filename == "" {
-		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "filename is required"))
-		return
-	}
-
-	filePath := filepath.Join(m.uploadDir, filepath.Base(filename))
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		ctx.JSON(http.StatusNotFound, response.NewError(http.StatusNotFound, "image not found"))
-		return
-	}
-
-	ctx.File(filePath)
 }
 
 type uploadFileRequest struct {
@@ -72,5 +56,5 @@ type fileResponse struct {
 	Success    bool    `json:"success"`
 	StatusCode int     `json:"status_code"`
 	Message    string  `json:"message"`
-	URL        *string `json:"url,omitempty"`
+	Data       *string `json:"data,omitempty"`
 }
