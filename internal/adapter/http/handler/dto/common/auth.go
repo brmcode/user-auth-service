@@ -36,7 +36,7 @@ type ReNewAccessTokenResponse struct {
 type RegisterUserRequest struct {
 	FirstName string `json:"first_name" validate:"required,min=3,max=20"`
 	LastName  string `json:"last_name" validate:"required,min=3,max=20"`
-	ImageURL  string `json:"image_url" validate:"required,url"`
+	ImageURL  string `json:"image_url" validate:"optional_url"`
 	Email     string `json:"email" validate:"required,email"`
 	Password  string `json:"password" validate:"required,min=6"`
 }
