@@ -2,7 +2,7 @@ package handler
 
 import (
 	"net/http"
-	"sort"
+	"slices"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/auth"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/request"
@@ -83,13 +83,24 @@ func (u *UserHandler) UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	if payload.Username != username {
-		ctx.JSON(http.StatusForbidden, response.NewError(403, "you are not allowed to update this user"))
+	isAdmin := payload.HasRole(domain.ADMIN_ROLE)
+	isOwner := payload.Username == username
+
+	// Only the owner or an admin can update a user.
+	if !isOwner && !isAdmin {
+		ctx.JSON(
+			http.StatusForbidden,
+			response.NewError(403, "you are not allowed to update this user"),
+		)
 		return
 	}
 
-	if !payload.HasRole(domain.ADMIN_ROLE) && !roleCodesEqual(payload.Roles, req.Roles) {
-		ctx.JSON(http.StatusForbidden, response.NewError(403, "insufficient permissions to change roles"))
+	// Only admins can change roles.
+	if !isAdmin && !roleCodesEqual(payload.Roles, req.Roles) {
+		ctx.JSON(
+			http.StatusForbidden,
+			response.NewError(403, "insufficient permissions to change roles"),
+		)
 		return
 	}
 
@@ -119,19 +130,16 @@ func (u *UserHandler) DeleteUser(ctx *gin.Context) {
 	ctx.Status(http.StatusNoContent)
 }
 
-func roleCodesEqual(a, b []string) bool {
-	if len(a) != len(b) {
+func roleCodesEqual(currentRoles, requestedRoles []string) bool {
+	if len(currentRoles) != len(requestedRoles) {
 		return false
 	}
-	ac, bc := make([]string, len(a)), make([]string, len(b))
-	copy(ac, a)
-	copy(bc, b)
-	sort.Strings(ac)
-	sort.Strings(bc)
-	for i := range ac {
-		if ac[i] != bc[i] {
-			return false
-		}
-	}
-	return true
+
+	sortedCurrentRoles := slices.Clone(currentRoles)
+	sortedRequestedRoles := slices.Clone(requestedRoles)
+
+	slices.Sort(sortedCurrentRoles)
+	slices.Sort(sortedRequestedRoles)
+
+	return slices.Equal(sortedCurrentRoles, sortedRequestedRoles)
 }
