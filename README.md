@@ -1,14 +1,13 @@
 # 🚀 User Authentication Service
 
-A production-ready, high-performance user authentication and management service written in Go, featuring secure login/registration, dual token-based authentication (PASETO/JWT), OAuth integration (Google), Redis caching, session management, and comprehensive user operations. Built with clean hexagonal architecture principles for maintainability, testability, and extensibility.
+A production-ready user authentication and management service written in Go, featuring secure login/registration, dual token-based authentication (PASETO/JWT), OAuth integration (Google), Redis caching, session management, and comprehensive user operations. Built with clean hexagonal architecture principles for maintainability, testability, and extensibility.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go" alt="Go Version"/>
+  <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go" alt="Go Version"/>
   <img src="https://img.shields.io/badge/PostgreSQL-18+-336791?logo=postgresql" alt="PostgreSQL"/>
   <img src="https://img.shields.io/badge/Redis-7+-DC382D?logo=redis" alt="Redis"/>
-  <img src="https://img.shields.io/badge/gRPC-1.78-244C5A?logo=grpc" alt="gRPC"/>
+  <img src="https://img.shields.io/badge/gRPC-1.79-244C5A?logo=grpc" alt="gRPC"/>
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/Status-Active-brightgreen" alt="Status"/>
   <img src="https://img.shields.io/badge/Architecture-Hexagonal-blue" alt="Architecture"/>
 </p>
 
@@ -26,20 +25,18 @@ A production-ready, high-performance user authentication and management service 
 - [Database & Caching](#-database--caching)
 - [Setup & Usage](#-setup--usage)
 - [API Testing with Bruno](#-api-testing-with-bruno)
-- [Extending & Customizing](#-extending--customizing)
 - [Project Structure](#-project-structure)
 - [License](#-license)
-- [Contributing](#-contributing)
 
 ---
 
 ## ✨ Features
 
 - 🔒 **Secure authentication** with bcrypt password hashing
-- 🛡️ **Role-based access control** (USER/ADMIN roles)
+- 🛡️ **Role-based access control** (USER/ADMIN roles, many-to-many relationship)
 - 🪪 **Dual token authentication** (PASETO or JWT — configurable via `TOKEN_TYPE`)
 - ♻️ **Access & refresh token** system with automatic renewal and rotation
-- 🔐 **OAuth authentication** with Google (via [Goth](https://github.com/markbates/goth) library)
+- 🔐 **OAuth authentication** with Google (via [Goth](https://github.com/markbates/goth)) and Google ID token verification for mobile
 - 🗂️ **Session management** with Redis caching and database persistence
 - 🏗️ **Clean hexagonal architecture** with clear separation of concerns
 - 🧩 **Dependency injection container** (`internal/app/`) for bootstrapping all services
@@ -54,6 +51,7 @@ A production-ready, high-performance user authentication and management service 
 - 🛡️ **Security features** (token expiration, session blocking, IP tracking, user agent logging, refresh token reuse detection)
 - 🔄 **Graceful shutdown** support for both HTTP and gRPC servers
 - 📡 **CORS support** via `gin-contrib/cors`
+- 📷 **Avatar uploads** served via CDN path (`/cdn`)
 
 ---
 
@@ -77,12 +75,11 @@ This project follows **Clean Hexagonal Architecture** principles with four disti
 ┌──────────────────────▼───────────────────────────────────────────┐
 │                    Adapter Layer (Driving & Driven)               │
 │  internal/adapter/                                               │
-│  ├── controller/     HTTP handlers (Gin) — auth, user, oauth     │
+│  ├── http/handler/   HTTP handlers (Gin) — auth, user, oauth     │
 │  ├── grpc/           gRPC servers — auth, user, metadata         │
 │  ├── middleware/      Auth middleware, rate limiting              │
 │  ├── validator/       Custom validation rules & messages         │
-│  ├── auth/            Token payload, JWT & PASETO implementations│
-│  └── storage/         Database (PostgreSQL) & Redis adapters     │
+│  └── auth/            Token payload, JWT & PASETO implementations│
 └──────────────────────┬───────────────────────────────────────────┘
                        │
 ┌──────────────────────▼───────────────────────────────────────────┐
@@ -95,13 +92,9 @@ This project follows **Clean Hexagonal Architecture** principles with four disti
 └──────────────────────────────────────────────────────────────────┘
                        │
 ┌──────────────────────▼───────────────────────────────────────────┐
-│                     Package Layer                                │
-│  pkg/                                                            │
-│  ├── config/         Viper-based configuration management        │
-│  ├── oauth/          OAuth provider initialization (Goth)        │
-│  ├── util/           Utilities (password, token, cache, random)  │
-│  ├── proto/          Protobuf service definitions                │
-│  └── pb/             Generated gRPC/protobuf Go code             │
+│                   Infrastructure                                 │
+│  internal/adapter/storage/ — Database (PostgreSQL) & Redis      │
+│  pkg/                         Config, OAuth, utilities, protobuf  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -111,7 +104,8 @@ This project follows **Clean Hexagonal Architecture** principles with four disti
 |-------|-----------|----------------|
 | **Entry Points** | `main.go`, `cmd/` | Application startup, server initialization |
 | **Application** | `internal/app/` | Dependency injection, bootstrapping all components into a `Container` |
-| **Adapters** | `internal/adapter/` | External concerns — HTTP controllers, gRPC servers, database repos, Redis cache, middleware, validation, token services |
+| **Adapters** | `internal/adapter/` | External concerns — HTTP controllers, gRPC servers, middleware, validation, token services |
+| **Infrastructure** | `internal/adapter/storage/` | Database (PostgreSQL) and Redis cache repositories |
 | **Core** | `internal/core/` | Business logic, domain models, service interfaces (ports), DTOs |
 | **Packages** | `pkg/` | Reusable utilities, configuration, protobuf definitions, OAuth setup |
 
@@ -120,34 +114,36 @@ This project follows **Clean Hexagonal Architecture** principles with four disti
 ## 📡 API Endpoints
 
 ### 🔑 Auth
-| Method | Endpoint                  | Auth Required | Description |
-|--------|---------------------------|:---:|------------------------------------------|
-| POST   | `/api/auth/login`         | ❌  | User login (returns access/refresh tokens) |
-| POST   | `/api/auth/register`      | ❌  | User registration (auto-assigns `USER` role) |
-| POST   | `/api/auth/refresh_token` | ❌  | Renew access & refresh tokens (with rotation) |
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|:---:|------------------------------------------|
+| POST | `/api/auth/login` | ❌ | User login (returns access/refresh tokens) |
+| POST | `/api/auth/register` | ❌ | User registration (auto-assigns `USER` role) |
+| POST | `/api/auth/register_login` | ❌ | Register and immediately log in |
+| POST | `/api/auth/refresh_token` | ❌ | Renew access & refresh tokens (with rotation) |
+| POST | `/api/auth/logout` | ✅ | Invalidate session and refresh token |
 
 ### 🔐 OAuth
-| Method | Endpoint                        | Auth Required | Description |
-|--------|---------------------------------|:---:|-------------------------------------------|
-| GET    | `/api/oauth/:provider`          | ❌  | Initiate OAuth flow (redirects to provider) |
-| GET    | `/api/oauth/:provider/callback` | ❌  | OAuth callback (returns tokens) |
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|:---:|-------------------------------------------|
+| GET | `/api/oauth/:provider` | ❌ | Initiate OAuth flow (redirects to provider) |
+| GET | `/api/oauth/:provider/callback` | ❌ | OAuth callback (returns tokens) |
+| POST | `/api/oauth/mobile/google` | ❌ | Google ID token verification (mobile) |
 
 **Supported Providers:**
-- ✅ `google` — Google OAuth 2.0
+- ✅ `google` — Google OAuth 2.0 and Google ID token
 
-**OAuth Flow:**
-1. User visits `/api/oauth/google` → redirected to Google
-2. User authenticates on Google
-3. Google redirects back to `/api/oauth/google/callback`
-4. Service creates/links user account and returns access/refresh tokens
+### 📷 Media
+| Method | Endpoint | Auth Required | Description |
+|--------|----------|:---:|-------------------------------------------|
+| POST | `/api/uploads/avatar` | ✅ | Upload user avatar (served via `/cdn` path) |
 
 ### 👤 Users
-| Method | Endpoint               | Auth Required | Role Required | Description |
-|--------|------------------------|:---:|:---:|----------------------------------|
-| POST   | `/api/users`           | ✅  | `ADMIN` | Create user (admin only) |
-| GET    | `/api/users/:username` | ✅  | Any | Get user details (self only) |
-| PUT    | `/api/users/:username` | ✅  | Any | Update user details (self only, role change requires ADMIN) |
-| DELETE | `/api/users/:username` | ✅  | Any | Delete user (self only, soft delete) |
+| Method | Endpoint | Auth Required | Role Required | Description |
+|--------|----------|:---:|:---:|----------------------------------|
+| POST | `/api/users` | ✅ | `ADMIN` | Create user (admin only) |
+| GET | `/api/users/:username` | ✅ | Any | Get user details (self only) |
+| PUT | `/api/users/:username` | ✅ | Any | Update user details (self only, role change requires ADMIN) |
+| DELETE | `/api/users/:username` | ✅ | Any | Delete user (self only, soft delete) |
 
 ### 🚦 Rate Limiting
 - **Rate Limit**: 40 requests per second (global, token-bucket algorithm)
@@ -199,18 +195,22 @@ Generated Go code is in `pkg/pb/`.
 | `FirstName` | `varchar(20)` | NOT NULL | User's first name |
 | `LastName` | `varchar(20)` | NOT NULL | User's last name |
 | `Email` | `varchar(100)` | UNIQUE, NOT NULL | User's email address |
+| `ImageURL` | `text` | NOT NULL | CDN path for user avatar |
 | `HashedPassword` | `varchar(255)` | NOT NULL | bcrypt hashed password |
-| `Role` | `varchar(10)` | NOT NULL | `USER` or `ADMIN` |
 | `PasswordChangedAt` | `timestamptz` | NOT NULL | Last password change timestamp |
 | `CreatedAt` | `timestamptz` | NOT NULL, default `CURRENT_TIMESTAMP` | Account creation timestamp |
 | `DeletedAt` | `timestamptz` | Indexed | Soft delete (GORM `gorm.DeletedAt`) |
 
 **Relationships:**
+- Has many `Roles` via `user_roles` join table (many-to-many)
 - Has one `Session` (foreign key: `Username`)
 - Has many `OauthAccounts` (foreign key: `Username`, cascade update/delete)
 
-**Hooks:**
-- `BeforeDelete`: Unscoped deletes all associated `OauthAccount` records
+### Role
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `Code` | `varchar(20)` | Primary Key | Role code (e.g., `USER`, `ADMIN`) |
+| `Name` | `varchar(50)` | NOT NULL, UNIQUE | Human-readable role name |
 
 ### Session
 | Field | Type | Constraints | Description |
@@ -290,12 +290,13 @@ When refreshing tokens (`POST /api/auth/refresh_token`):
 ## 🔐 OAuth Integration
 
 ### Architecture
-OAuth is implemented using the [Goth](https://github.com/markbates/goth) library, initialized in `pkg/oauth/oauth.go`.
+OAuth is implemented using the [Goth](https://github.com/markbates/goth) library, initialized in `pkg/oauth/oauth.go`. Google ID token verification for mobile clients is in `pkg/util/google/`.
 
 ### Supported Providers
 - ✅ **Google** — Scopes: `email`, `profile`
+- ✅ **Google Mobile** — ID token verification endpoint for mobile clients
 
-### How It Works
+### OAuth Flow (Web)
 1. **User initiates OAuth**: Visits `/api/oauth/:provider`
 2. **Provider authentication**: Redirected to Google for login
 3. **Callback handling**: Provider redirects to `/api/oauth/:provider/callback`
@@ -304,6 +305,11 @@ OAuth is implemented using the [Goth](https://github.com/markbates/goth) library
    - **No OAuth account, but email exists** → Links to existing user (restores if soft-deleted), creates OAuth account record, issues tokens
    - **Completely new user** → Creates new user (with random username, `USER` role), creates OAuth account record, issues tokens
 5. **Token issuance**: Returns standard access/refresh tokens with session
+
+### Mobile OAuth Flow
+- Clients send Google ID token to `/api/oauth/mobile/google`
+- Server verifies the token using Google's API
+- Same account linking logic as web flow
 
 ### OAuth Account Management
 - Each OAuth provider account is linked to a user account
@@ -316,7 +322,7 @@ OAuth is implemented using the [Goth](https://github.com/markbates/goth) library
 
 ## ⚙️ Configuration
 
-Configuration is loaded from `app.env` using [Viper](https://github.com/spf13/viper):
+Configuration is loaded from `.env` (or `app.env`) using [Viper](https://github.com/spf13/viper):
 
 ```env
 # =========================
@@ -377,10 +383,10 @@ type Configuration struct {
 ### Setting Up Google OAuth
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
-3. Enable Google+ API
+3. Enable the Google+ API
 4. Create OAuth 2.0 credentials
 5. Add authorized redirect URI: `http://localhost:8080/api/oauth/google/callback`
-6. Copy Client ID and Client Secret to `app.env`
+6. Copy Client ID and Client Secret to your `.env` file
 
 ---
 
@@ -389,7 +395,7 @@ type Configuration struct {
 ### PostgreSQL
 - **Version**: 18 (Alpine)
 - **ORM**: GORM with PostgreSQL driver (`pgx/v5`)
-- **Auto-migration**: `User`, `Session`, and `OauthAccount` tables created on startup
+- **Auto-migration**: `User`, `Role`, `Session`, and `OauthAccount` tables created on startup (along with `user_roles` join table)
 - **Connection Pool** (optimized):
   - Max Open Connections: 25
   - Max Idle Connections: 10
@@ -425,7 +431,7 @@ type Configuration struct {
 ## ⚡ Setup & Usage
 
 ### Prerequisites
-- [Go 1.24+](https://golang.org/dl/)
+- [Go 1.26+](https://golang.org/dl/)
 - [Docker](https://www.docker.com/)
 - [protoc](https://grpc.io/docs/protoc-installation/) (only for regenerating protobuf code)
 
@@ -439,8 +445,8 @@ type Configuration struct {
 
 2. **Configure environment:**
    ```sh
-   # Edit app.env with your database, Redis, and OAuth credentials
-   nano app.env
+   cp app.env .env
+   # Edit .env with your database, Redis, and OAuth credentials
    ```
 
 3. **Start all services with Docker:**
@@ -471,16 +477,16 @@ type Configuration struct {
    - RedisInsight: `http://localhost:5540`
 
 ### 🛠️ Makefile Commands
-| Command           | Description                        |
-|-------------------|------------------------------------|
+| Command | Description |
+|---------|-------------|
 | `make compose-up` | Start all Docker services (PostgreSQL, Redis, RedisInsight) |
-| `make compose-down`| Stop all Docker services          |
-| `make http`       | Run the HTTP server (`cmd/http/main.go`) |
-| `make grpc`       | Run the gRPC server (`cmd/grpc/main.go`) |
-| `make run-app`    | Run combined HTTP + gRPC server (`main.go`, legacy) |
-| `make createdb`   | Create the `auth_db` database     |
-| `make dropdb`     | Drop the `auth_db` database       |
-| `make proto`      | Regenerate gRPC protobuf Go files  |
+| `make compose-down` | Stop all Docker services |
+| `make http` | Run the HTTP server (`cmd/http/main.go`) |
+| `make grpc` | Run the gRPC server (`cmd/grpc/main.go`) |
+| `make run-app` | Run combined HTTP + gRPC server (`main.go`, legacy) |
+| `make createdb` | Create the `auth_db` database |
+| `make dropdb` | Drop the `auth_db` database |
+| `make proto` | Regenerate gRPC protobuf Go files |
 
 ### Server Entrypoints
 
@@ -512,6 +518,18 @@ curl -X POST http://localhost:8080/api/auth/login \
     "email": "user@example.com",
     "password": "password123",
     "role": "USER"
+  }'
+```
+
+**Register and Login (combined):**
+```bash
+curl -X POST http://localhost:8080/api/auth/register_login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "user@example.com",
+    "password": "password123"
   }'
 ```
 
@@ -548,7 +566,9 @@ bruno/user-auth-service/
 ├── auth/                       # Auth endpoint requests
 │   ├── login.yml               # POST /api/auth/login
 │   ├── register.yml            # POST /api/auth/register
+│   ├── register-and-login.yml  # POST /api/auth/register_login
 │   ├── refresh-token.yml       # POST /api/auth/refresh_token
+│   ├── logout.yml              # POST /api/auth/logout
 │   └── oauth.yml               # GET /api/oauth/:provider
 ├── user/                       # User endpoint requests
 │   ├── create-user.yml         # POST /api/users
@@ -572,7 +592,7 @@ bruno/user-auth-service/
 
 | Task | Where | Details |
 |------|-------|---------|
-| **New HTTP endpoints** | `internal/adapter/controller/` | Create controller, add routes in `router.go` |
+| **New HTTP endpoints** | `internal/adapter/http/handler/` | Create handler, add routes in `router.go` |
 | **New gRPC services** | `pkg/proto/`, `internal/adapter/grpc/` | Define `.proto`, generate code, implement server |
 | **Business logic** | `internal/core/service/` | Implement service interface from `port/` |
 | **Domain models** | `internal/core/domain/` | Add struct with GORM tags, update `db.Migrate()` |
@@ -582,7 +602,7 @@ bruno/user-auth-service/
 | **Middleware** | `internal/adapter/middleware/` | Add new Gin middleware handlers |
 | **Custom validation** | `internal/adapter/validator/` | Register rules in `register_validation.go`, messages in `message.go` |
 | **Caching** | `internal/adapter/storage/redis/` | Extend `CacheRepository` interface in `port/cache.go` |
-| **Token types** | `app.env` → `TOKEN_TYPE` | Switch between `paseto` and `jwt` |
+| **Token types** | `.env` → `TOKEN_TYPE` | Switch between `paseto` and `jwt` |
 | **Configuration** | `pkg/config/config.go` | Add new config sections, update Viper bindings |
 | **Dependency wiring** | `internal/app/bootstrap.go` | Add new services/repos to `Container` |
 
@@ -603,9 +623,9 @@ user-auth-service/
 │   │   ├── bootstrap.go                     # Wires all dependencies, returns Container
 │   │   └── container.go                     # Container struct holding all services
 │   ├── adapter/                             # External adapters
-│   │   ├── controller/                      # HTTP controllers (Gin framework)
-│   │   │   ├── auth.go                      # Auth endpoints (login, register, refresh)
-│   │   │   ├── oauth.go                     # OAuth endpoints (begin, callback)
+│   │   ├── http/handler/                    # HTTP handlers (Gin framework)
+│   │   │   ├── auth.go                      # Auth endpoints
+│   │   │   ├── oauth.go                     # OAuth endpoints
 │   │   │   ├── router.go                    # Route definitions & graceful shutdown
 │   │   │   └── user.go                      # User CRUD endpoints
 │   │   ├── grpc/                            # gRPC servers
@@ -616,10 +636,11 @@ user-auth-service/
 │   │   ├── storage/                         # Data storage layer
 │   │   │   ├── database/                    # PostgreSQL with GORM
 │   │   │   │   ├── db.go                    # Connection, pooling & auto-migration
-│   │   │   │   └── repository/              # Data access layer
-│   │   │   │       ├── oauth_account.go     # OauthAccount CRUD
-│   │   │   │       ├── session.go           # Session CRUD & blocking
-│   │   │   │       └── user.go              # User CRUD & lookup
+│   │   │   │   └── repository/              # Data access implementations
+│   │   │   │       ├── oauth_account.go     # OauthAccount repository
+│   │   │   │       ├── role.go              # Role repository
+│   │   │   │       ├── session.go           # Session repository
+│   │   │   │       └── user.go              # User repository
 │   │   │   └── redis/                       # Redis caching layer
 │   │   │       └── redis.go                 # Cache operations (Set, Get, Delete, DeleteByPrefix)
 │   │   ├── middleware/                      # HTTP middleware
@@ -638,11 +659,12 @@ user-auth-service/
 │   │           └── paseto.go                # PASETO V2 implementation
 │   └── core/                                # Business logic
 │       ├── domain/                          # Domain models
-│       │   ├── user.go                      # User entity with GORM tags & hooks
+│       │   ├── user.go                      # User entity with GORM tags
+│       │   ├── role.go                      # Role entity
 │       │   ├── session.go                   # Session entity
 │       │   └── oauth_account.go             # OauthAccount entity with unique indexes
 │       ├── service/                         # Business services
-│       │   ├── auth.go                      # Auth service (login, register, OAuth, refresh)
+│       │   ├── auth.go                      # Auth service (login, register, OAuth, refresh, logout)
 │       │   └── user.go                      # User service (CRUD with caching)
 │       ├── dto/                             # Data transfer objects
 │       │   ├── common/
@@ -651,13 +673,16 @@ user-auth-service/
 │       │   │   ├── user_request.go          # CreateUser, UpdateUser requests
 │       │   │   └── session_request.go       # CreateSession request
 │       │   └── response/
-│       │       └── error.go                 # Standard error response
+│       │       ├── error.go                 # Standard error response
+│       │       └── user.go                 # User response DTOs
 │       └── port/                            # Interface contracts
 │           ├── auth.go                      # AuthenticationService, TokenService interfaces
 │           ├── user.go                      # UserRepository, UserService interfaces
+│           ├── role.go                      # RoleRepository interface
 │           ├── session.go                   # SessionRepository interface
 │           ├── oauth_account.go             # OauthAccountRepository interface
-│           └── cache.go                     # CacheRepository interface
+│           ├── cache.go                     # CacheRepository interface
+│           └── uow.go                       # UnitOfWork interface
 ├── pkg/                                     # Reusable packages
 │   ├── config/
 │   │   └── config.go                        # Viper-based configuration struct & loader
@@ -688,12 +713,11 @@ user-auth-service/
 │       ├── auth/                            # Auth API requests
 │       ├── user/                            # User API requests
 │       └── grpc/                            # gRPC requests
-├── app.env                                  # Environment configuration
+├── app.env                                  # Environment configuration template
 ├── docker-compose.yaml                      # Multi-service Docker setup
 ├── Makefile                                 # Build and run commands
-├── go.mod                                   # Go module definition (go 1.24.4)
-├── go.sum                                   # Dependency checksums
-└── README.md                                # This documentation
+├── go.mod                                   # Go module definition (go 1.26.1)
+└── go.sum                                   # Dependency checksums
 ```
 
 ---
@@ -702,21 +726,21 @@ user-auth-service/
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `gin-gonic/gin` | v1.10.1 | HTTP web framework |
-| `gorm.io/gorm` | v1.30.1 | ORM for PostgreSQL |
+| `gin-gonic/gin` | v1.12.0 | HTTP web framework |
+| `gorm.io/gorm` | v1.31.1 | ORM for PostgreSQL |
 | `gorm.io/driver/postgres` | v1.6.0 | PostgreSQL driver (pgx) |
-| `redis/go-redis/v9` | v9.11.0 | Redis client |
-| `golang-jwt/jwt/v5` | v5.2.3 | JWT token implementation |
+| `redis/go-redis/v9` | v9.18.0 | Redis client |
+| `golang-jwt/jwt/v5` | v5.3.1 | JWT token implementation |
 | `o1egl/paseto` | v1.0.0 | PASETO V2 token implementation |
 | `markbates/goth` | v1.82.0 | OAuth multi-provider library |
-| `spf13/viper` | v1.20.1 | Configuration management |
-| `go-playground/validator/v10` | v10.26.0 | Struct validation |
-| `google.golang.org/grpc` | v1.78.0 | gRPC framework |
-| `google.golang.org/protobuf` | v1.36.10 | Protocol Buffers |
-| `gin-contrib/cors` | v1.7.6 | CORS middleware |
-| `golang.org/x/crypto` | v0.44.0 | bcrypt password hashing |
-| `golang.org/x/time` | v0.12.0 | Rate limiting |
-| `jackc/pgx/v5` | v5.7.5 | PostgreSQL driver |
+| `spf13/viper` | v1.21.0 | Configuration management |
+| `go-playground/validator/v10` | v10.30.1 | Struct validation |
+| `google.golang.org/grpc` | v1.79.3 | gRPC framework |
+| `google.golang.org/protobuf` | v1.36.11 | Protocol Buffers |
+| `gin-contrib/cors` | v1.7.7 | CORS middleware |
+| `golang.org/x/crypto` | v0.49.0 | bcrypt password hashing |
+| `golang.org/x/time` | v0.15.0 | Rate limiting |
+| `jackc/pgx/v5` | v5.9.1 | PostgreSQL driver |
 | `google/uuid` | v1.6.0 | UUID generation |
 
 ---
@@ -724,9 +748,3 @@ user-auth-service/
 ## 📝 License
 
 [MIT](LICENSE)
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open issues or pull requests for improvements or bug fixes.
