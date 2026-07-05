@@ -64,17 +64,11 @@ jobs:
             echo "==> Cleaning up old images"
             docker image prune -f
             echo "==> Checking health"
-            for attempt in {1..10}; do
-              if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
-                break
-              fi
-              if [ "$attempt" -eq 10 ]; then
-                echo "Health check failed"
-                docker compose logs app
-                exit 1
-              fi
-              sleep 2
-            done
+            if ! curl -sf http://localhost:8080/health >/dev/null 2>&1; then
+              echo "Health check failed"
+              docker compose logs app
+              exit 1
+            fi
             echo "==> Container status"
             docker compose ps
           EOF
