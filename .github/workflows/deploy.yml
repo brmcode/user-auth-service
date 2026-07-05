@@ -48,7 +48,7 @@ jobs:
             docker compose ps
             echo "==> Checking health"
             sleep 5
-            curl -sf http://localhost:8080 || (docker compose logs app && exit 1)
+            curl -sf http://localhost:8080 || (docker compose logs server && exit 1)
           ENDSSH
 
       - name: Notify on failure
