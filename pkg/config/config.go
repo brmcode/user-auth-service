@@ -57,10 +57,16 @@ func New(path string) (config *Configuration, err error) {
 	viper.AddConfigPath(path)
 	viper.SetConfigFile(".env")
 	viper.SetConfigType("env")
-
-
 	viper.AutomaticEnv()
-	err = viper.ReadInConfig()
+
+	if readErr := viper.ReadInConfig(); readErr != nil {
+		if _, ok := readErr.(viper.ConfigFileNotFoundError); ok {
+			// No .env file present — fine, rely on OS env vars (e.g. from docker-compose env_file)
+		} else {
+			err = readErr
+			return
+		}
+	}
 
 	db := &DB{
 		Connection: viper.GetString("DB_CONNECTION"),
