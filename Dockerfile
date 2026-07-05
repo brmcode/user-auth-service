@@ -12,7 +12,6 @@ FROM alpine:3.23
 WORKDIR /app
 RUN apk add --no-cache tzdata
 COPY --from=builder /app/server .
-COPY .env ./
 
 ENV GIN_MODE=release
 
