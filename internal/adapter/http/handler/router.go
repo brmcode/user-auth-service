@@ -35,9 +35,10 @@ func NewRouter(
 	router.Use(cors.Default())
 
 	router.GET("", serverRunning)
+	router.GET("/health", serverRunning)
 	router.Static("/cdn", "./uploads")
 
-	api := router.Group("/api")
+	api := router.Group("/v1")
 	{
 		api.POST("/uploads/avatar", mediaHandler.UploadAvatar)
 		auth := api.Group("/auth")
@@ -96,6 +97,6 @@ func (r *Router) Serve(listenAddr string) {
 
 func serverRunning(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "server is running",
+		"message": "Server is running",
 	})
 }
