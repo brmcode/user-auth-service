@@ -55,9 +55,11 @@ type (
 
 func New(path string) (config *Configuration, err error) {
 	viper.AddConfigPath(path)
-	viper.SetConfigName("app")
+	viper.SetConfigFile(".env")
 	viper.SetConfigType("env")
 
+
+	viper.AutomaticEnv()
 	err = viper.ReadInConfig()
 
 	db := &DB{
