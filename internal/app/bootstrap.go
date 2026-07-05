@@ -18,8 +18,7 @@ import (
 func Bootstrap(ctx context.Context) (*Container, error) {
 	cfg, err := config.New(".")
 	if err != nil {
-		log.Printf("Error loading config: %v", err)
-		// return nil, fmt.Errorf("failed to load config: %v", err)
+		return nil, fmt.Errorf("failed to load config: %v", err)
 	}
 
 	oauth.Init(cfg.OAuth)
