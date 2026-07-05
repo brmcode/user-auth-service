@@ -43,12 +43,12 @@ jobs:
             docker compose up -d --build
             echo "==> Cleaning up old images"
             docker image prune -f
+            echo "==> Checking health"
+            sleep 2
+            curl -sf http://localhost:8080/health || (docker compose logs app && exit 1)
             echo "==> Done! Checking health"
             sleep 5
             docker compose ps
-            echo "==> Checking health"
-            sleep 5
-            curl -sf http://localhost:8080 || (docker compose logs server && exit 1)
           ENDSSH
 
       - name: Notify on failure
