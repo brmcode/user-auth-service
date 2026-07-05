@@ -40,15 +40,15 @@ jobs:
             git fetch origin deployment
             git reset --hard origin/deployment
             echo "==> Building and starting containers"
-            docker-compose up -d --build
+            docker compose up -d --build
             echo "==> Cleaning up old images"
             docker image prune -f
             echo "==> Done! Checking health"
             sleep 5
-            docker-compose ps
+            docker compose ps
             echo "==> Checking health"
             sleep 5
-            curl -sf http://localhost:8080 || (docker-compose logs app && exit 1)
+            curl -sf http://localhost:8080 || (docker compose logs app && exit 1)
           ENDSSH
 
       - name: Notify on failure
