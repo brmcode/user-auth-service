@@ -35,12 +35,13 @@ func NewRouter(
 	router.Use(cors.Default())
 
 	router.GET("", serverRunning)
+	router.GET("/health", serverRunning)
 	router.Static("/cdn", "./uploads")
 
-	api := router.Group("/api")
+	v1 := router.Group("/v1")
 	{
-		api.POST("/uploads/avatar", mediaHandler.UploadAvatar)
-		auth := api.Group("/auth")
+		v1.POST("/uploads/avatar", mediaHandler.UploadAvatar)
+		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/register", authHandler.Register)
@@ -49,14 +50,14 @@ func NewRouter(
 			auth.POST("/logout", authHandler.Logout)
 		}
 
-		oauth := api.Group("/oauth")
+		oauth := v1.Group("/oauth")
 		{
 			oauth.GET("/:provider", oauthHandler.Begin)
 			oauth.GET("/:provider/callback", oauthHandler.Callback)
 			oauth.POST("/mobile/google", oauthHandler.GoogleAuthMobile)
 		}
 
-		user := api.Group("/users")
+		user := v1.Group("/users")
 		{
 			user.POST("", mw.Authorized(domain.ADMIN_ROLE), userHandler.CreateUser)
 			user.GET("/:username", mw.Authorized(), userHandler.GetUser)
@@ -96,6 +97,6 @@ func (r *Router) Serve(listenAddr string) {
 
 func serverRunning(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "server is running",
+		"message": "Server is running",
 	})
 }
