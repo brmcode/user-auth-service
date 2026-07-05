@@ -63,13 +63,30 @@ jobs:
             docker compose up -d --build
             echo "==> Cleaning up old images"
             docker image prune -f
-            echo "==> Checking health"
-            if ! curl -sf http://localhost:8080/health >/dev/null 2>&1; then
-              echo "Health check failed"
-              docker compose logs app
+
+            echo "==> Waiting for app to become healthy"
+            ATTEMPTS=10
+            SLEEP=3
+            SUCCESS=false
+            for i in \$(seq 1 \$ATTEMPTS); do
+              if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
+                SUCCESS=true
+                break
+              fi
+              echo "Attempt \$i/\$ATTEMPTS failed, retrying in \${SLEEP}s..."
+              sleep \$SLEEP
+            done
+
+            if [ "\$SUCCESS" != "true" ]; then
+              echo "==> Health check failed after \$ATTEMPTS attempts"
+              echo "==> Recent app logs:"
+              docker compose logs --tail=50 app
+              echo "==> Container status:"
+              docker compose ps
               exit 1
             fi
-            echo "==> Container status"
+
+            echo "==> Health check passed"
             docker compose ps
           EOF
 
