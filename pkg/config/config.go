@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"time"
 
 	"github.com/spf13/viper"
@@ -60,8 +61,8 @@ func New(path string) (config *Configuration, err error) {
 	viper.AutomaticEnv()
 
 	if readErr := viper.ReadInConfig(); readErr != nil {
-		if _, ok := readErr.(viper.ConfigFileNotFoundError); ok {
-			// No .env file present — fine, rely on OS env vars (e.g. from docker-compose env_file)
+		if os.IsNotExist(readErr) {
+			// No .env file — fine, rely on OS env vars (e.g. docker-compose env_file)
 		} else {
 			err = readErr
 			return
