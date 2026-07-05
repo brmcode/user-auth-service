@@ -1,41 +1,61 @@
 name: Deploy to production
+
 on:
   push:
     branches:
       - deployment
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Build & deploy
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SSH_HOST: ssh.brzone.org
+      SSH_USER: ${{ secrets.SERVER_USER }}
+      APP_DIR: ${{ secrets.APP_DIR }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install cloudflared
         run: |
-          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
-          sudo apt-get update && sudo apt-get install -y cloudflared
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /etc/apt/keyrings/cloudflare-main.gpg >/dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" | sudo tee /etc/apt/sources.list.d/cloudflared.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y cloudflared
 
-      - name: Set up SSH key
+      - name: Configure SSH access
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          cat >> ~/.ssh/config << EOF
-          Host ssh.brzone.org
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          cat > ~/.ssh/config <<EOF
+          Host $SSH_HOST
+            HostName $SSH_HOST
             ProxyCommand cloudflared access ssh --hostname %h
             IdentityFile ~/.ssh/deploy_key
             StrictHostKeyChecking no
-            User ${{ secrets.SERVER_USER }}
+            User $SSH_USER
+            ServerAliveInterval 30
+            ServerAliveCountMax 3
           EOF
 
       - name: Deploy to server
         run: |
-          ssh ssh.brzone.org << 'ENDSSH'
-            set -e
-            cd ${{ secrets.APP_DIR }}
+          ssh "$SSH_HOST" <<EOF
+            set -euo pipefail
+            cd "$APP_DIR"
             echo "==> Pulling latest code"
             git fetch origin deployment
             git reset --hard origin/deployment
@@ -44,12 +64,20 @@ jobs:
             echo "==> Cleaning up old images"
             docker image prune -f
             echo "==> Checking health"
-            sleep 2
-            curl -sf http://localhost:8080/health || (docker compose logs app && exit 1)
-            echo "==> Done! Checking health"
-            sleep 5
+            for attempt in {1..10}; do
+              if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
+                break
+              fi
+              if [ "$attempt" -eq 10 ]; then
+                echo "Health check failed"
+                docker compose logs app
+                exit 1
+              fi
+              sleep 2
+            done
+            echo "==> Container status"
             docker compose ps
-          ENDSSH
+          EOF
 
       - name: Notify on failure
         if: failure()
