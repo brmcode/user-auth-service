@@ -1,0 +1,4 @@
+name: Server
+variables:
+  - name: url
+    value: api.brzone.org

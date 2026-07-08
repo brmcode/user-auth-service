@@ -1,0 +1,15 @@
+info:
+  name: get-image
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{url}}/cdn/avatars/1774623848879556100.png"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
