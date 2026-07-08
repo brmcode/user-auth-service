@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package pb;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/brmcode/user-auth-service/pkg/pb";
+
+message User {
+    string username = 1;
+    string first_name = 2;
+    string last_name = 3;
+    string email = 4;
+    repeated string roles = 5;
+    google.protobuf.Timestamp password_changed_at = 6;
+    google.protobuf.Timestamp created_at = 7;
+}

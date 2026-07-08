@@ -1,0 +1,21 @@
+info:
+  name: refresh-token
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{url}}/v1/auth/refresh_token"
+  body:
+    type: json
+    data: |-
+      {
+          "refresh_token": "v2.local.7yPk0Nrv-VOJOW8ZP8lZ5c7Kpeq6l2vN0jTNlhzpWoi0I7jtqO5BfF2_4Z0yV_T78JkIEC8uzb5Ipbh893ZXpHr_LjsP_XtljAEJtr4XqcqOIhoXVdo1EAZeycokkeI79fd58QaAwVcVULsuaAu9rtuHSJl5aInGuftxniRyRmSqQ7s4zVWKLQZSmzkn2hunBrx77qn-AKoTkD23uJlNrG8AntNYO6EQCxm_KM-hpLcBwc9AwTZmteem6tN3XrtGC8BxT3KHmKjosYqaldV-AWmHpy1yNc8hj8U.bnVsbA"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

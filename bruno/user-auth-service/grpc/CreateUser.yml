@@ -1,0 +1,18 @@
+info:
+  name: CreateUser
+  type: grpc
+  seq: 1
+
+grpc:
+  url: localhost:50051
+  method: /pb.UserService/CreateUser
+  methodType: unary
+  message: |-
+    {
+        "email": "{{$randomEmail}}",
+        "first_name": "{{$randomFirstName}}",
+        "last_name": "{{$randomLastName}}",
+        "password": "123456",
+        "roles": ["USER"]
+    }
+  auth: inherit

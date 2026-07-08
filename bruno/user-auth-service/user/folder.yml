@@ -1,0 +1,9 @@
+info:
+  name: user
+  type: folder
+  seq: 1
+
+request:
+  auth:
+    type: bearer
+    token: v2.local.2Z-Cwok70wWGppPPOrxXOCo8QnAg1cTR-TIPw8uM7XITFwvBfygcVHdplVICvFCHdI5zcpfTE86ebOTXmE8diDoByE5kQjgHYkMHES2kRvzaLoso7ceauzDCz63vlESCcTFed6RaLQAkVk2XK7JZAlbmqmk2oHdsCVUQHBnnfnf17I3lfeyQSU_ePvt8w_o5On1B02mCvHIhTwt8XQ8ubxE3aTE0HND8GHrzI4bu1yncJpOTxo5J3tp8_TRDkQq1qufYtJAIOTxERscsO_MLyAJdf6Ab.bnVsbA

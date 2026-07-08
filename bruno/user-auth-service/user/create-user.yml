@@ -1,0 +1,26 @@
+info:
+  name: create-user
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{url}}/v1/users"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{$randomExampleEmail}}",
+        "first_name": "{{$randomFirstName}}",
+        "last_name": "{{$randomLastName}}",
+        "image_url":"https://picsum.photos/200",
+        "password": "123456",
+        "role": "ADMIN"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

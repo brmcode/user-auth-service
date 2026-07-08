@@ -1,0 +1,25 @@
+info:
+  name: login
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{url}}/v1/auth/login"
+  body:
+    type: json
+    data: |-
+      {
+          "email": "Noe_Pacocha@example.org",
+          "password": "123456",
+          "role": "USER"
+      }
+  auth:
+    type: bearer
+    token: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
