@@ -5,14 +5,14 @@ info:
 
 http:
   method: POST
-  url: "{{url}}/api/uploads/avatar"
+  url: "{{url}}/v1/uploads/avatar"
   body:
     type: multipart-form
     data:
       - name: file
         type: file
         value:
-          - C:\Users\baram\Pictures\Screenshots\Screenshot 2026-01-28 194322.png
+          - C:\Users\brmcode\BK\Screenshot 2026-07-06 224330.png
         contentType: image/png
   auth: inherit
 

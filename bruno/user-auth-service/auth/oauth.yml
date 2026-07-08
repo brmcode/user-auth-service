@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{url}}/api/oauth/google"
+  url: "{{url}}/v1/oauth/google"
   auth: inherit
 
 settings:
