@@ -3,7 +3,7 @@
 A production-ready user authentication and management service written in Go, featuring secure login/registration, dual token-based authentication (PASETO/JWT), OAuth integration (Google), Redis caching, session management, and comprehensive user operations. Built with clean hexagonal architecture principles for maintainability, testability, and extensibility.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go" alt="Go Version"/>
+  <img src="https://img.shields.io/badge/Go-1.26.1+-00ADD8?logo=go" alt="Go Version"/>
   <img src="https://img.shields.io/badge/PostgreSQL-18+-336791?logo=postgresql" alt="PostgreSQL"/>
   <img src="https://img.shields.io/badge/Redis-7+-DC382D?logo=redis" alt="Redis"/>
   <img src="https://img.shields.io/badge/gRPC-1.79-244C5A?logo=grpc" alt="gRPC"/>
@@ -116,18 +116,18 @@ This project follows **Clean Hexagonal Architecture** principles with four disti
 ### 🔑 Auth
 | Method | Endpoint | Auth Required | Description |
 |--------|----------|:---:|------------------------------------------|
-| POST | `/api/auth/login` | ❌ | User login (returns access/refresh tokens) |
-| POST | `/api/auth/register` | ❌ | User registration (auto-assigns `USER` role) |
-| POST | `/api/auth/register_login` | ❌ | Register and immediately log in |
-| POST | `/api/auth/refresh_token` | ❌ | Renew access & refresh tokens (with rotation) |
-| POST | `/api/auth/logout` | ✅ | Invalidate session and refresh token |
+| POST | `/v1/auth/login` | ❌ | User login (returns access/refresh tokens) |
+| POST | `/v1/auth/register` | ❌ | User registration (auto-assigns `USER` role) |
+| POST | `/v1/auth/register_login` | ❌ | Register and immediately log in |
+| POST | `/v1/auth/refresh_token` | ❌ | Renew access & refresh tokens (with rotation) |
+| POST | `/v1/auth/logout` | ✅ | Invalidate session and refresh token |
 
 ### 🔐 OAuth
 | Method | Endpoint | Auth Required | Description |
 |--------|----------|:---:|-------------------------------------------|
-| GET | `/api/oauth/:provider` | ❌ | Initiate OAuth flow (redirects to provider) |
-| GET | `/api/oauth/:provider/callback` | ❌ | OAuth callback (returns tokens) |
-| POST | `/api/oauth/mobile/google` | ❌ | Google ID token verification (mobile) |
+| GET | `/v1/oauth/:provider` | ❌ | Initiate OAuth flow (redirects to provider) |
+| GET | `/v1/oauth/:provider/callback` | ❌ | OAuth callback (returns tokens) |
+| POST | `/v1/oauth/mobile/google` | ❌ | Google ID token verification (mobile) |
 
 **Supported Providers:**
 - ✅ `google` — Google OAuth 2.0 and Google ID token
@@ -135,15 +135,15 @@ This project follows **Clean Hexagonal Architecture** principles with four disti
 ### 📷 Media
 | Method | Endpoint | Auth Required | Description |
 |--------|----------|:---:|-------------------------------------------|
-| POST | `/api/uploads/avatar` | ✅ | Upload user avatar (served via `/cdn` path) |
+| POST | `/v1/uploads/avatar` | ✅ | Upload user avatar (served via `/cdn` path) |
 
 ### 👤 Users
 | Method | Endpoint | Auth Required | Role Required | Description |
 |--------|----------|:---:|:---:|----------------------------------|
-| POST | `/api/users` | ✅ | `ADMIN` | Create user (admin only) |
-| GET | `/api/users/:username` | ✅ | Any | Get user details (self only) |
-| PUT | `/api/users/:username` | ✅ | Any | Update user details (self only, role change requires ADMIN) |
-| DELETE | `/api/users/:username` | ✅ | Any | Delete user (self only, soft delete) |
+| POST | `/v1/users` | ✅ | `ADMIN` | Create user (admin only) |
+| GET | `/v1/users/:username` | ✅ | Any | Get user details (self only) |
+| PUT | `/v1/users/:username` | ✅ | Any | Update user details (self only, role change requires ADMIN) |
+| DELETE | `/v1/users/:username` | ✅ | Any | Delete user (self only, soft delete) |
 
 ### 🚦 Rate Limiting
 - **Rate Limit**: 40 requests per second (global, token-bucket algorithm)
@@ -272,7 +272,7 @@ Login/Register/OAuth
 ```
 
 ### Refresh Token Rotation
-When refreshing tokens (`POST /api/auth/refresh_token`):
+When refreshing tokens (`POST /v1/auth/refresh_token`):
 1. Verify the old refresh token
 2. Validate session (not blocked, not expired, user exists)
 3. **Reuse detection**: If the submitted token doesn't match the stored token, **all sessions for that user are blocked**
@@ -297,9 +297,9 @@ OAuth is implemented using the [Goth](https://github.com/markbates/goth) library
 - ✅ **Google Mobile** — ID token verification endpoint for mobile clients
 
 ### OAuth Flow (Web)
-1. **User initiates OAuth**: Visits `/api/oauth/:provider`
+1. **User initiates OAuth**: Visits `/v1/oauth/:provider`
 2. **Provider authentication**: Redirected to Google for login
-3. **Callback handling**: Provider redirects to `/api/oauth/:provider/callback`
+3. **Callback handling**: Provider redirects to `/v1/oauth/:provider/callback`
 4. **Account linking** (3 scenarios):
    - **Existing OAuth account** → Retrieves linked user, issues tokens
    - **No OAuth account, but email exists** → Links to existing user (restores if soft-deleted), creates OAuth account record, issues tokens
@@ -307,7 +307,7 @@ OAuth is implemented using the [Goth](https://github.com/markbates/goth) library
 5. **Token issuance**: Returns standard access/refresh tokens with session
 
 ### Mobile OAuth Flow
-- Clients send Google ID token to `/api/oauth/mobile/google`
+- Clients send Google ID token to `/v1/oauth/mobile/google`
 - Server verifies the token using Google's API
 - Same account linking logic as web flow
 
@@ -365,7 +365,7 @@ REDIS_TTL=30m                    # Cache TTL
 # =========================
 OAUTH_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 OAUTH_GOOGLE_CLIENT_SECRET=your-client-secret
-OAUTH_GOOGLE_CALLBACK_URL=http://localhost:8080/api/oauth/google/callback
+OAUTH_GOOGLE_CALLBACK_URL=http://localhost:8080/v1/oauth/google/callback
 ```
 
 ### Configuration Structure (`pkg/config/config.go`)
@@ -385,7 +385,7 @@ type Configuration struct {
 2. Create a new project or select an existing one
 3. Enable the Google+ API
 4. Create OAuth 2.0 credentials
-5. Add authorized redirect URI: `http://localhost:8080/api/oauth/google/callback`
+5. Add authorized redirect URI: `http://localhost:8080/v1/oauth/google/callback`
 6. Copy Client ID and Client Secret to your `.env` file
 
 ---
@@ -431,7 +431,7 @@ type Configuration struct {
 ## ⚡ Setup & Usage
 
 ### Prerequisites
-- [Go 1.26+](https://golang.org/dl/)
+- [Go 1.26.1+](https://golang.org/dl/)
 - [Docker](https://www.docker.com/)
 - [protoc](https://grpc.io/docs/protoc-installation/) (only for regenerating protobuf code)
 
@@ -472,7 +472,7 @@ type Configuration struct {
    ```
 
 6. **APIs available at:**
-   - HTTP REST: `http://localhost:8080/api/`
+  - HTTP REST: `http://localhost:8080/v1/`
    - gRPC: `localhost:50051` (configurable via `GRPC_PORT`)
    - RedisInsight: `http://localhost:5540`
 
@@ -500,7 +500,7 @@ type Configuration struct {
 
 **Register:**
 ```bash
-curl -X POST http://localhost:8080/api/auth/register \
+curl -X POST http://localhost:8080/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "John",
@@ -512,7 +512,7 @@ curl -X POST http://localhost:8080/api/auth/register \
 
 **Login:**
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost:8080/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -523,7 +523,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 **Register and Login (combined):**
 ```bash
-curl -X POST http://localhost:8080/api/auth/register_login \
+curl -X POST http://localhost:8080/v1/auth/register_login \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "John",
@@ -535,7 +535,7 @@ curl -X POST http://localhost:8080/api/auth/register_login \
 
 **Refresh Token:**
 ```bash
-curl -X POST http://localhost:8080/api/auth/refresh_token \
+curl -X POST http://localhost:8080/v1/auth/refresh_token \
   -H "Content-Type: application/json" \
   -d '{
     "refresh_token": "<your-refresh-token>"
@@ -544,12 +544,12 @@ curl -X POST http://localhost:8080/api/auth/refresh_token \
 
 **Get User (authenticated):**
 ```bash
-curl -X GET http://localhost:8080/api/users/<username> \
+curl -X GET http://localhost:8080/v1/users/<username> \
   -H "Authorization: Bearer <your-access-token>"
 ```
 
 **OAuth Login:**
-1. Open browser: `http://localhost:8080/api/oauth/google`
+1. Open browser: `http://localhost:8080/v1/oauth/google`
 2. Complete Google authentication
 3. Redirected back with tokens in response
 
@@ -564,17 +564,17 @@ This project includes a **[Bruno](https://www.usebruno.com/)** API collection fo
 bruno/user-auth-service/
 ├── opencollection.yml          # Collection config (base URL: http://localhost:8080)
 ├── auth/                       # Auth endpoint requests
-│   ├── login.yml               # POST /api/auth/login
-│   ├── register.yml            # POST /api/auth/register
-│   ├── register-and-login.yml  # POST /api/auth/register_login
-│   ├── refresh-token.yml       # POST /api/auth/refresh_token
-│   ├── logout.yml              # POST /api/auth/logout
-│   └── oauth.yml               # GET /api/oauth/:provider
+│   ├── login.yml               # POST /v1/auth/login
+│   ├── register.yml            # POST /v1/auth/register
+│   ├── register-and-login.yml  # POST /v1/auth/register_login
+│   ├── refresh-token.yml       # POST /v1/auth/refresh_token
+│   ├── logout.yml              # POST /v1/auth/logout
+│   └── oauth.yml               # GET /v1/oauth/:provider
 ├── user/                       # User endpoint requests
-│   ├── create-user.yml         # POST /api/users
-│   ├── get-user.yml            # GET /api/users/:username
-│   ├── update-user.yml         # PUT /api/users/:username
-│   └── delete-user.yml         # DELETE /api/users/:username
+│   ├── create-user.yml         # POST /v1/users
+│   ├── get-user.yml            # GET /v1/users/:username
+│   ├── update-user.yml         # PUT /v1/users/:username
+│   └── delete-user.yml         # DELETE /v1/users/:username
 └── grpc/                       # gRPC requests
     ├── CreateUser.yml           # UserService.CreateUser
     └── LoginUser.yml            # AuthService.LoginUser
@@ -585,6 +585,12 @@ bruno/user-auth-service/
 2. Open the `bruno/user-auth-service/` directory as a collection
 3. The base URL is pre-configured to `http://localhost:8080`
 4. Bearer token auth is pre-configured at collection level
+
+Bruno Environments:
+- The collection includes environment files in `bruno/user-auth-service/environments/`.
+  - `Local.yml` sets `url` to `http://localhost:8080` for local testing.
+  - `Server.yml` sets `url` to `your-host.com` for the staging/production target.
+  Select the desired environment inside Bruno to switch the collection's `url` variable.
 
 ---
 
