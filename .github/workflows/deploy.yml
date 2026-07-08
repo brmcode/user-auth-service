@@ -1,0 +1,95 @@
+name: Deploy to production
+
+on:
+  push:
+    branches:
+      - deployment
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SSH_HOST: ssh.brzone.org
+      SSH_USER: ${{ secrets.SERVER_USER }}
+      APP_DIR: ${{ secrets.APP_DIR }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install cloudflared
+        run: |
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /etc/apt/keyrings/cloudflare-main.gpg >/dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" | sudo tee /etc/apt/sources.list.d/cloudflared.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y cloudflared
+
+      - name: Configure SSH access
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          cat > ~/.ssh/config <<EOF
+          Host $SSH_HOST
+            HostName $SSH_HOST
+            ProxyCommand cloudflared access ssh --hostname %h
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            User $SSH_USER
+            ServerAliveInterval 30
+            ServerAliveCountMax 3
+          EOF
+
+      - name: Deploy to server
+        run: |
+          ssh "$SSH_HOST" <<EOF
+            set -euo pipefail
+            cd "$APP_DIR"
+            echo "==> Pulling latest code"
+            git fetch origin deployment
+            git reset --hard origin/deployment
+            echo "==> Building and starting containers"
+            docker compose up -d --build
+            echo "==> Cleaning up old images"
+            docker image prune -f
+
+            echo "==> Waiting for app to become healthy"
+            ATTEMPTS=10
+            SLEEP=3
+            SUCCESS=false
+            for i in \$(seq 1 \$ATTEMPTS); do
+              if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
+                SUCCESS=true
+                break
+              fi
+              echo "Attempt \$i/\$ATTEMPTS failed, retrying in \${SLEEP}s..."
+              sleep \$SLEEP
+            done
+
+            if [ "\$SUCCESS" != "true" ]; then
+              echo "==> Health check failed after \$ATTEMPTS attempts"
+              echo "==> Recent app logs:"
+              docker compose logs --tail=50 app
+              echo "==> Container status:"
+              docker compose ps
+              exit 1
+            fi
+
+            echo "==> Health check passed"
+            docker compose ps
+          EOF
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Deploy failed — check Actions logs"

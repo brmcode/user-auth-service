@@ -1,19 +1,40 @@
 services:
+  app:
+    build: .
+    container_name: auth_app
+    env_file:
+      - .env
+    ports:
+      - "${HTTP_PORT}:${HTTP_PORT}"
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+
   postgres:
     image: postgres:18-alpine
+    container_name: auth_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${DB_NAME} -U ${DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     environment:
-      - POSTGRES_USER=root
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB=auth_db
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
+    restart: always
+
   redis:
     image: redis:7-alpine
+    container_name: auth_redis
     ports:
       - "6379:6379"
-  redisinsight:
-    image: redis/redisinsight:latest
-    ports:
-      - "5540:5540"
-    depends_on:
-      - redis
+    restart: always
+
+volumes:
+  db_data:
