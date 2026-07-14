@@ -64,9 +64,9 @@ func (a *authService) loginSuccess(ctx *gin.Context, user *domain.User) *respons
 func (a *authService) loginSuccessWithSessionRepo(ctx *gin.Context, user *domain.User, sessionRepo port.SessionRepository) (*response.LoginResult, error) {
 	token, err := util.IssueSessionAndTokens(ctx, user, a.config, a.tokenService, sessionRepo)
 	if err != nil {
-		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()}), err
+		return response.Login(false, 500, err.Error(), false, nil), err
 	}
-	return response.Login(true, 200, "login successful", false, token, nil), nil
+	return response.Login(true, 200, "login successful", false, token), nil
 }
 
 func (a *authService) linkOAuthAccount(username, provider, providerUserID, email string) error {
@@ -115,26 +115,26 @@ func (a *authService) Login(ctx *gin.Context, cred dto.LoginModel) *response.Log
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return response.Login(false, 404, "user not found", false, nil, &[]string{err.Error()})
+			return response.Login(false, 404, "user not found", false, nil)
 		}
-		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+		return response.Login(false, 500, err.Error(), false, nil)
 	}
 
 	if err := util.ComparePassword(cred.Password, user.HashedPassword); err != nil {
-		return response.Login(false, 400, "invalid credentials", false, nil, &[]string{err.Error()})
+		return response.Login(false, 400, "invalid credentials", false, nil)
 	}
 
 	token, err := util.IssueSessionAndTokens(ctx, user, a.config, a.tokenService, a.sessionRepo)
 	if err != nil {
-		return response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+		return response.Login(false, 500, err.Error(), false, nil)
 	}
-	return response.Login(true, 200, "login successful", false, token, nil)
+	return response.Login(true, 200, "login successful", false, token)
 }
 
 func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *response.UserResult {
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
-		return response.User(false, 500, "failed to hash password", nil, &[]string{err.Error()})
+		return response.User(false, 500, "failed to hash password", nil)
 	}
 
 	var createdUser *domain.User
@@ -161,9 +161,9 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return response.User(false, 409, pgErr.Detail, nil, &[]string{pgErr.Detail})
+			return response.User(false, 409, pgErr.Detail, nil)
 		}
-		return response.User(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.User(false, 500, err.Error(), nil)
 	}
 
 	key := util.GenerateCacheKey("user", createdUser.Username)
@@ -178,72 +178,72 @@ func (a *authService) Register(ctx *gin.Context, req dto.RegisterUserRequest) *r
 		}
 	}
 
-	return response.User(true, 201, "user registered successfully", createdUser, nil)
+	return response.User(true, 201, "user registered successfully", createdUser)
 }
 
 func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.RefreshTokenResult {
 	refreshPayload, err := a.tokenService.VerifyToken(req.RefreshToken)
 	if err != nil {
-		return response.RefreshToken(false, 401, err.Error(), nil, &[]string{err.Error()})
+		return response.RefreshToken(false, 401, err.Error(), nil)
 	}
 
 	session, err := a.sessionRepo.Get(refreshPayload.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return response.RefreshToken(false, 404, "session not found", nil, &[]string{err.Error()})
+			return response.RefreshToken(false, 404, "session not found", nil)
 		}
-		return response.RefreshToken(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.RefreshToken(false, 500, err.Error(), nil)
 	}
 
 	if session.IsBlocked {
-		return response.RefreshToken(false, 401, "blocked session", nil, nil)
+		return response.RefreshToken(false, 401, "blocked session", nil)
 	}
 	if session.Username != refreshPayload.Username {
-		return response.RefreshToken(false, 401, "incorrect session user", nil, nil)
+		return response.RefreshToken(false, 401, "incorrect session user", nil)
 	}
 	if session.RefreshToken != req.RefreshToken {
 		if err := a.sessionRepo.BlockAllSessions(session.Username); err != nil {
-			return response.RefreshToken(false, 500, fmt.Sprintf("failed to block sessions: %s", err), nil, &[]string{err.Error()})
+			return response.RefreshToken(false, 500, fmt.Sprintf("failed to block sessions: %s", err), nil)
 		}
-		return response.RefreshToken(false, 401, "refresh token reuse detected: all sessions blocked", nil, nil)
+		return response.RefreshToken(false, 401, "refresh token reuse detected: all sessions blocked", nil)
 	}
 	if time.Now().After(session.ExpiresAt) {
-		return response.RefreshToken(false, 401, "expired session", nil, nil)
+		return response.RefreshToken(false, 401, "expired session", nil)
 	}
 
 	userOfSession, err := a.userRepo.Get(session.Username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return response.RefreshToken(false, 404, "invalid session: user data missing", nil, &[]string{err.Error()})
+			return response.RefreshToken(false, 404, "invalid session: user data missing", nil)
 		}
-		return response.RefreshToken(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.RefreshToken(false, 500, err.Error(), nil)
 	}
 
 	if !roleCodesEqual(userOfSession.RoleCodes(), refreshPayload.Roles) {
 		if err := a.sessionRepo.BlockAllSessions(session.Username); err != nil {
-			return response.RefreshToken(false, 500, fmt.Sprintf("failed to block sessions: %s", err), nil, &[]string{err.Error()})
+			return response.RefreshToken(false, 500, fmt.Sprintf("failed to block sessions: %s", err), nil)
 		}
-		return response.RefreshToken(false, 401, "user roles changed: please log in again", nil, nil)
+		return response.RefreshToken(false, 401, "user roles changed: please log in again", nil)
 	}
 
 	accessToken, accessPayload, err := a.tokenService.GenerateToken(
 		uuid.Nil, refreshPayload.Username, refreshPayload.Roles, a.config.Auth.TokenDuration,
 	)
 	if err != nil {
-		return response.RefreshToken(false, 500, fmt.Sprintf("could not generate access token: %s", err), nil, &[]string{err.Error()})
+		return response.RefreshToken(false, 500, fmt.Sprintf("could not generate access token: %s", err), nil)
 	}
 
 	newRefreshToken, newRefreshPayload, err := a.tokenService.GenerateToken(
 		refreshPayload.ID, refreshPayload.Username, refreshPayload.Roles, a.config.Auth.RefreshTokenDuration,
 	)
 	if err != nil {
-		return response.RefreshToken(false, 500, fmt.Sprintf("could not generate refresh token: %s", err), nil, &[]string{err.Error()})
+		return response.RefreshToken(false, 500, fmt.Sprintf("could not generate refresh token: %s", err), nil)
 	}
 
 	session.RefreshToken = newRefreshToken
 	session.ExpiresAt = newRefreshPayload.ExpiresAt
 	if _, err := a.sessionRepo.Update(session); err != nil {
-		return response.RefreshToken(false, 500, err.Error(), nil, &[]string{err.Error()})
+		return response.RefreshToken(false, 500, err.Error(), nil)
 	}
 
 	return response.RefreshToken(true, 200, "token renewed successfully", &dto.ReNewAccessTokenResponse{
@@ -251,7 +251,7 @@ func (a *authService) ReNewAccessToken(ctx *gin.Context, req dto.ReNewAccessToke
 		AccessTokenExpriresAt: accessPayload.ExpiresAt,
 		RefreshToken:          newRefreshToken,
 		RefreshTokenExpiresAt: newRefreshPayload.ExpiresAt,
-	}, nil)
+	})
 }
 
 func (a *authService) Logout(ctx *gin.Context, req dto.ReNewAccessTokenRequest) *response.LogoutResult {
@@ -298,14 +298,14 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 		if err == nil {
 			authUser, err = uow.UserRepo().Get(account.Username)
 			if err != nil {
-				result = response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
+				result = response.Login(false, 500, "failed to get user", false, nil)
 				return err
 			}
 			result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
 			return err
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			result = response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to look up oauth account", false, nil)
 			return err
 		}
 
@@ -314,12 +314,12 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 			if authUser.DeletedAt.Valid {
 				authUser.DeletedAt = gorm.DeletedAt{}
 				if _, err := uow.UserRepo().Update(authUser); err != nil {
-					result = response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
+					result = response.Login(false, 500, "failed to restore user", false, nil)
 					return err
 				}
 			}
 			if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, provider, gUser.UserID, gUser.Email); err != nil {
-				result = response.Login(false, 500, "failed to link oauth account", false, nil, &[]string{err.Error()})
+				result = response.Login(false, 500, "failed to link oauth account", false, nil)
 				return err
 			}
 			shouldCache = true
@@ -327,13 +327,13 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 			return err
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			result = response.Login(false, 500, "failed to look up user", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to look up user", false, nil)
 			return err
 		}
 
 		defaultRoles, err := a.defaultUserRoleWithRepo(uow.RoleRepo())
 		if err != nil {
-			result = response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, err.Error(), false, nil)
 			return err
 		}
 
@@ -347,11 +347,11 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 		}
 		authUser, err = uow.UserRepo().Create(newUser)
 		if err != nil {
-			result = response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to create user", false, nil)
 			return err
 		}
 		if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, provider, gUser.UserID, gUser.Email); err != nil {
-			result = response.Login(false, 500, "failed to link oauth account", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to link oauth account", false, nil)
 			return err
 		}
 
@@ -364,7 +364,7 @@ func (a *authService) OAuthLogin(ctx *gin.Context, provider string, gUser goth.U
 		if result != nil {
 			return result
 		}
-		return response.Login(false, 500, "oauth login failed", false, nil, &[]string{err.Error()})
+		return response.Login(false, 500, "oauth login failed", false, nil)
 	}
 
 	if shouldCache {
@@ -390,14 +390,14 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload
 		if err == nil {
 			authUser, err = uow.UserRepo().Get(account.Username)
 			if err != nil {
-				result = response.Login(false, 500, "failed to get user", false, nil, &[]string{err.Error()})
+				result = response.Login(false, 500, "failed to get user", false, nil)
 				return err
 			}
 			result, err = a.loginSuccessWithSessionRepo(ctx, authUser, uow.SessionRepo())
 			return err
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			result = response.Login(false, 500, "failed to look up oauth account", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to look up oauth account", false, nil)
 			return err
 		}
 
@@ -406,12 +406,12 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload
 			if authUser.DeletedAt.Valid {
 				authUser.DeletedAt = gorm.DeletedAt{}
 				if _, err := uow.UserRepo().Update(authUser); err != nil {
-					result = response.Login(false, 500, "failed to restore user", false, nil, &[]string{err.Error()})
+					result = response.Login(false, 500, "failed to restore user", false, nil)
 					return err
 				}
 			}
 			if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, "google", payload.Subject, payload.Email); err != nil {
-				result = response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
+				result = response.Login(false, 500, "failed to link google account", false, nil)
 				return err
 			}
 			shouldCache = true
@@ -419,13 +419,13 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload
 			return err
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			result = response.Login(false, 500, "failed to look up user", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to look up user", false, nil)
 			return err
 		}
 
 		defaultRoles, err := a.defaultUserRoleWithRepo(uow.RoleRepo())
 		if err != nil {
-			result = response.Login(false, 500, err.Error(), false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, err.Error(), false, nil)
 			return err
 		}
 
@@ -439,11 +439,11 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload
 		}
 		authUser, err = uow.UserRepo().Create(newUser)
 		if err != nil {
-			result = response.Login(false, 500, "failed to create user", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to create user", false, nil)
 			return err
 		}
 		if err := a.linkOAuthAccountWithRepo(uow.OauthAccountRepo(), authUser.Username, "google", payload.Subject, payload.Email); err != nil {
-			result = response.Login(false, 500, "failed to link google account", false, nil, &[]string{err.Error()})
+			result = response.Login(false, 500, "failed to link google account", false, nil)
 			return err
 		}
 
@@ -456,7 +456,7 @@ func (a *authService) GoogleAuthMobile(ctx *gin.Context, payload *google.Payload
 		if result != nil {
 			return result
 		}
-		return response.Login(false, 500, "google auth login failed", false, nil, &[]string{err.Error()})
+		return response.Login(false, 500, "google auth login failed", false, nil)
 	}
 
 	if shouldCache {
