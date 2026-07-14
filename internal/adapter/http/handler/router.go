@@ -13,6 +13,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
+	"github.com/brmcode/user-auth-service/pkg/i18n"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -97,6 +98,6 @@ func (r *Router) Serve(listenAddr string) {
 
 func serverRunning(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Server is running",
+		"message": i18n.Translate("server.running"),
 	})
 }

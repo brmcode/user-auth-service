@@ -6,6 +6,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
 	"github.com/brmcode/user-auth-service/pkg/config"
+	"github.com/brmcode/user-auth-service/pkg/i18n"
 	"github.com/brmcode/user-auth-service/pkg/pb"
 	"github.com/brmcode/user-auth-service/pkg/util"
 	"github.com/google/uuid"
@@ -38,7 +39,7 @@ func (a *AuthServer) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 		if err == gorm.ErrRecordNotFound {
 			return nil, status.Error(codes.NotFound, "user not found")
 		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, i18n.Translate("common.internal_error"))
 	}
 
 	if err := util.ComparePassword(req.GetPassword(), user.HashedPassword); err != nil {
@@ -49,14 +50,14 @@ func (a *AuthServer) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 		uuid.Nil, user.Username, user.RoleCodes(), a.config.Auth.TokenDuration,
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not generate access token: %s", err)
+		return nil, status.Error(codes.Internal, i18n.Translate("common.internal_error"))
 	}
 
 	refreshToken, refreshPayload, err := a.tokenService.GenerateToken(
 		uuid.Nil, user.Username, user.RoleCodes(), a.config.Auth.RefreshTokenDuration,
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not generate refresh token: %s", err)
+		return nil, status.Error(codes.Internal, i18n.Translate("common.internal_error"))
 	}
 
 	metadata := extractMetadata(ctx)
@@ -69,7 +70,7 @@ func (a *AuthServer) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*
 		ExpiresAt:    refreshPayload.ExpiresAt,
 	})
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, i18n.Translate("common.internal_error"))
 	}
 
 	return &pb.LoginUserResponse{

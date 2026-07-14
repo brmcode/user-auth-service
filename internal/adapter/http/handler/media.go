@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
+	"github.com/brmcode/user-auth-service/pkg/i18n"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,7 +27,7 @@ func NewMediaHandler(uploadDir string) *MediaHandler {
 func (m *MediaHandler) UploadAvatar(ctx *gin.Context) {
 	var req uploadFileRequest
 	if err := ctx.ShouldBind(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "file is required"))
+		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, i18n.Translate("media.file.required")))
 		return
 	}
 
@@ -35,7 +36,7 @@ func (m *MediaHandler) UploadAvatar(ctx *gin.Context) {
 	savePath := filepath.Join(m.uploadDir, filename)
 
 	if err := ctx.SaveUploadedFile(req.File, savePath); err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.NewError(http.StatusInternalServerError, "failed to save file"))
+		ctx.JSON(http.StatusInternalServerError, response.NewError(http.StatusInternalServerError, i18n.Translate("media.save_failed")))
 		return
 	}
 
@@ -43,7 +44,7 @@ func (m *MediaHandler) UploadAvatar(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, fileResponse{
 		Success:    true,
 		StatusCode: http.StatusOK,
-		Message:    "file uploaded successfully",
+		Message:    i18n.Translate("media.upload.success"),
 		Data:       &url,
 	})
 }

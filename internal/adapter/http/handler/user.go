@@ -10,6 +10,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
+	"github.com/brmcode/user-auth-service/pkg/i18n"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,7 +26,7 @@ func NewUserHandler(v *validator.Validator, userService port.UserService) *UserH
 func (u *UserHandler) GetUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 	if auth.GetUsername(ctx) != username {
-		ctx.JSON(http.StatusForbidden, response.NewError(403, "you are not authorized to access this resource"))
+		ctx.JSON(http.StatusForbidden, response.NewError(403, i18n.Translate("auth.unauthorized.resource")))
 		return
 	}
 
@@ -41,12 +42,12 @@ func (u *UserHandler) GetUser(ctx *gin.Context) {
 func (u *UserHandler) CreateUser(ctx *gin.Context) {
 	var req request.CreateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
 	if err := u.validator.Validate(req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.validation_failed")))
 		return
 	}
 
@@ -63,23 +64,23 @@ func (u *UserHandler) UpdateUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 	payload := auth.GetPayload(ctx)
 	if payload == nil {
-		ctx.JSON(http.StatusInternalServerError, response.NewError(500, "payload not found"))
+		ctx.JSON(http.StatusInternalServerError, response.NewError(500, i18n.Translate("auth.payload.not_found")))
 		return
 	}
 
 	var req request.UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
 	if err := u.validator.Validate(req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.validation_failed")))
 		return
 	}
 
 	if username != req.Username {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, "username in path does not match body"))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("auth.username.path_mismatch")))
 		return
 	}
 
@@ -90,7 +91,7 @@ func (u *UserHandler) UpdateUser(ctx *gin.Context) {
 	if !isOwner && !isAdmin {
 		ctx.JSON(
 			http.StatusForbidden,
-			response.NewError(403, "you are not allowed to update this user"),
+			response.NewError(403, i18n.Translate("auth.user.update_not_allowed")),
 		)
 		return
 	}
@@ -99,7 +100,7 @@ func (u *UserHandler) UpdateUser(ctx *gin.Context) {
 	if !isAdmin && !roleCodesEqual(payload.Roles, req.Roles) {
 		ctx.JSON(
 			http.StatusForbidden,
-			response.NewError(403, "insufficient permissions to change roles"),
+			response.NewError(403, i18n.Translate("auth.roles.insufficient_permissions")),
 		)
 		return
 	}
@@ -117,7 +118,7 @@ func (u *UserHandler) DeleteUser(ctx *gin.Context) {
 	username := ctx.Param("username")
 
 	if auth.GetUsername(ctx) != username {
-		ctx.JSON(http.StatusForbidden, response.NewError(403, "you are not allowed to delete this user"))
+		ctx.JSON(http.StatusForbidden, response.NewError(403, i18n.Translate("auth.user.delete_not_allowed")))
 		return
 	}
 

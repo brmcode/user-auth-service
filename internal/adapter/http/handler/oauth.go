@@ -7,6 +7,7 @@ import (
 	dto "github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/common"
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/core/port"
+	"github.com/brmcode/user-auth-service/pkg/i18n"
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
 )
@@ -23,7 +24,7 @@ func NewOAuthHandler(authService port.AuthenticationService, verifier *google.ID
 func (o *OAuthHandler) Begin(ctx *gin.Context) {
 	provider := ctx.Param("provider")
 	if provider == "" {
-		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "provider parameter is required"))
+		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, i18n.Translate("oauth.provider.required")))
 		return
 	}
 	// Set provider in context for CompleteUserAuth
@@ -34,7 +35,7 @@ func (o *OAuthHandler) Begin(ctx *gin.Context) {
 func (o *OAuthHandler) Callback(ctx *gin.Context) {
 	provider := ctx.Param("provider")
 	if provider == "" {
-		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, "provider parameter is required"))
+		ctx.JSON(http.StatusBadRequest, response.NewError(http.StatusBadRequest, i18n.Translate("oauth.provider.required")))
 		return
 	}
 
@@ -43,7 +44,7 @@ func (o *OAuthHandler) Callback(ctx *gin.Context) {
 
 	user, err := gothic.CompleteUserAuth(ctx.Writer, ctx.Request)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, response.NewError(500, err.Error()))
+		ctx.JSON(http.StatusInternalServerError, response.NewError(500, i18n.Translate("common.internal_error")))
 		return
 	}
 
@@ -59,13 +60,13 @@ func (o *OAuthHandler) Callback(ctx *gin.Context) {
 func (o *OAuthHandler) GoogleAuthMobile(ctx *gin.Context) {
 	var req dto.GoogleAuthRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
 	payload, err := o.verifier.Verify(ctx.Request.Context(), req.IDToken)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, response.NewError(http.StatusUnauthorized, err.Error()))
+		ctx.JSON(http.StatusUnauthorized, response.NewError(http.StatusUnauthorized, i18n.Translate("oauth.invalid_token")))
 		return
 	}
 

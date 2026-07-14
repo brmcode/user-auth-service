@@ -9,6 +9,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/adapter/storage/database"
 	"github.com/brmcode/user-auth-service/internal/core/domain"
 	"github.com/brmcode/user-auth-service/internal/core/port"
+	"github.com/brmcode/user-auth-service/pkg/i18n"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -30,32 +31,32 @@ func Authorized(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader(authorizationHeaderKey)
 		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, "authorization header is missing"))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, i18n.Translate("middleware.auth.header_missing")))
 			return
 		}
 		if !strings.HasPrefix(authHeader, authorizationType) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, "invalid authorization format"))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, i18n.Translate("middleware.auth.invalid_format")))
 			return
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, authorizationType)
 		if tokenService == nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, response.NewError(500, "token service not initialized"))
+			c.AbortWithStatusJSON(http.StatusInternalServerError, response.NewError(500, i18n.Translate("middleware.auth.token_service_not_initialized")))
 			return
 		}
 
 		payload, err := tokenService.VerifyToken(tokenString)
 		if err != nil {
 			if err == jwt.ErrTokenExpired {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, err.Error()))
+				c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, i18n.Translate("common.internal_error")))
 				return
 			}
-			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, err.Error()))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, i18n.Translate("common.internal_error")))
 			return
 		}
 
 		if err := _db.First(&domain.User{}, "username = ?", payload.Username).Error; err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, "your account is no longer active or may have been removed"))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, response.NewError(401, i18n.Translate("middleware.auth.account_inactive")))
 			return
 		}
 
@@ -68,7 +69,7 @@ func Authorized(roles ...string) gin.HandlerFunc {
 				}
 			}
 			if !hasRequired {
-				c.AbortWithStatusJSON(http.StatusForbidden, response.NewError(403, "insufficient privileges"))
+				c.AbortWithStatusJSON(http.StatusForbidden, response.NewError(403, i18n.Translate("middleware.auth.insufficient_privileges")))
 				return
 			}
 		}

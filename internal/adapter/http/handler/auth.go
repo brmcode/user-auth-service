@@ -7,6 +7,7 @@ import (
 	"github.com/brmcode/user-auth-service/internal/adapter/http/handler/dto/response"
 	"github.com/brmcode/user-auth-service/internal/adapter/validator"
 	"github.com/brmcode/user-auth-service/internal/core/port"
+	"github.com/brmcode/user-auth-service/pkg/i18n"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,12 +22,12 @@ func (a *AuthHandler) RegisterAndLogin(ctx *gin.Context) {
 	var req dto.RegisterUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
 	if err := a.validator.Validate(req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.validation_failed")))
 		return
 	}
 
@@ -58,12 +59,12 @@ func (a *AuthHandler) Login(ctx *gin.Context) {
 	var input dto.LoginModel
 
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
 	if err := a.validator.Validate(input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.validation_failed")))
 		return
 	}
 
@@ -80,7 +81,7 @@ func (a *AuthHandler) RefreshToken(ctx *gin.Context) {
 	var input dto.ReNewAccessTokenRequest
 
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
@@ -97,7 +98,7 @@ func (a *AuthHandler) Logout(ctx *gin.Context) {
 	var input dto.ReNewAccessTokenRequest
 
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
@@ -114,12 +115,12 @@ func (a *AuthHandler) Register(ctx *gin.Context) {
 	var req dto.RegisterUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.invalid_body")))
 		return
 	}
 
 	if err := a.validator.Validate(req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response.NewError(400, err.Error()))
+		ctx.JSON(http.StatusBadRequest, response.NewError(400, i18n.Translate("request.validation_failed")))
 		return
 	}
 
