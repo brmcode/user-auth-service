@@ -57,8 +57,8 @@ jobs:
             set -euo pipefail
             cd "$APP_DIR"
             echo "==> Pulling latest code"
-            git fetch origin deployment
-            git reset --hard origin/deployment
+            git fetch origin main
+            git reset --hard origin/main
             echo "==> Building and starting containers"
             docker compose up -d --build
             echo "==> Cleaning up old images"
